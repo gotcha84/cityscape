@@ -1157,43 +1157,51 @@ void Shape::drawLookAtPoint() {
 
 void Shape::updateLookAtVector() {
 	Matrix4 tmp;
-
+	/*
 	cout << "----------------\nbefore: \n";
 	cout << "d: ";
 	d.print();
 	cout << "e: ";
 	e.print();
 	cout << "mag: " << (e - d).magnitude() << "\n";
-	tmp = Matrix4(d.getX(), d.getY(), d.getZ()-20, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	tmp.transpose();
-	//tmp.print();
-	float rad_anglex_change = 3.14*anglex_change/180.0;
-	tmp.rotateY(rad_anglex_change);
+	*/
 	
-	d = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2)+20u);
-	cout << "mag2: " << (e - d).magnitude() << "\n";
-	
-	/*
 	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
-	float rad_angley_change = 3.14*angley_change/180.0;
+	//tmp.print();
+	float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
+	tmp.rotateY(rad_anglex_change);
+	
+	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
+	cout << "mag2: " << (e - d).magnitude() << "\n";
+	
+	
+	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp.transpose();
+	float rad_angley_change = 3.14*(angley_change/10)/180.0;
 
 	tmp.rotateX(rad_angley_change);
 
 	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
-	*/
 
+	tmp = Matrix4(up.getX(), up.getY(), up.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp.transpose();
+
+	tmp.rotateWindowX(rad_angley_change);
+
+	up = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
+	
 	
 	updateCameraMatrix(0, 0, 0);
 	//cout << "angley_change: " << angley_change << '\n';
 	//cout << "angley: " << angley << '\n';
-	
+	/*
 	cout << "after: \n";
 	cout << "d: ";
 	d.print();
 	cout << "e: ";
 	e.print();
-
+	*/
 
 }
 
@@ -1531,7 +1539,7 @@ void Window::processMouseMove(int x, int y) {
 		angley_change = float(y-y_mouse)/angley_factor;
 		float tmp = angley;
 		angley+=angley_change;
-		//cout << "HIHI: " << angley << " != " << tmp << '\n';
+		cout << "HIHI: " << angley << " != " << tmp << '\n';
 		if (angley > 90.0) {
 			angley = 90.0;
 			angley_change = 0.0;
@@ -1540,7 +1548,7 @@ void Window::processMouseMove(int x, int y) {
 			angley = -90.0;
 			angley_change = 0.0;
 		}
-		//cout << "anglex change: " << anglex_change << '\n';
+		cout << "anglex change: " << angley_change << '\n';
 	}
 	
 		

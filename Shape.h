@@ -1,7 +1,7 @@
 #ifndef _SHAPE_H_
 #define _SHAPE_H_
 
-
+#include "scene.h"
 #include "shader.h"
 #include "Vector3.h"
 #include "Matrix4.h"
@@ -14,6 +14,10 @@
 #include "Cone.h"
 #include "Torus.h"
 #include "Tetrahedron.h"
+//#include "TIMER.h"
+#include "FPS_COUNTER.h"
+#include "GLee.h"
+#include <GL/glut.h>
 
 struct point {
   float x;
@@ -79,28 +83,29 @@ class Shape {
 		void updateCameraMatrix(float dx,float dy,float dz);
 		void updateLookAtVector();
 		void initializeHeightMap();
+		void makeShadows();
+		void initializeShadows();
 
 };
 
-class Window	  // output window related routines
-{
+class Window { // output window related routines
   public:
     static int width, height; 	            // window size
 
     static void idleCallback(void);
     static void reshapeCallback(int, int);
     static void displayCallback(void);
-		static void drawShape(int nVerts, float* vertices, float* normals);
-		static void processNormalKeys(unsigned char, int, int);
-		static void processSpecialKeys(int, int, int);
-		static void processMouseClick(int, int, int, int);
-		static void processMouseMove(int, int);
-		static void drawCube();
-		static void drawRobot();
-		static void drawDirectionalLight();
-		static void drawPointLight();
-		static void drawSpotLight();
-		static void drawSkyBox();
+	static void drawShape(int nVerts, float* vertices, float* normals);
+	static void processNormalKeys(unsigned char, int, int);
+	static void processSpecialKeys(int, int, int);
+	static void processMouseClick(int, int, int, int);
+	static void processMouseMove(int, int);
+	static void drawCube();
+	static void drawRobot();
+	static void drawDirectionalLight();
+	static void drawPointLight();
+	static void drawSpotLight();
+	static void drawSkyBox();
 };
 
 // house
@@ -121,12 +126,13 @@ static float house_vertices[] = {
 static float house_colors[] = { 
             1,0,0, 1,0,0, 1,0,0, 1,0,0,  // front is red
             0,1,0, 0,1,0, 0,1,0, 0,1,0,  // left is green
-            1,1,0, 1,1,0, 1,1,0, 1,1,0,  // back is purple
+            1,1,0, 1,1,0, 1,1,0, 1,1,0,  // back is yellow
             0,1,1, 0,1,1, 0,1,1, 0,1,1,  // right is cyan
             0,0,1, 0,0,1, 0,0,1, 0,0,1,  // top is blue
             0,0,1, 0,0,1, 0,0,1, 0,0,1,  // bottom is blue
   
-            0,0.5,0, 0,0.5,0, 0,0.5,0, 0,0.5,0, // grass is dark green
+           // 0,0.5,0, 0,0.5,0, 0,0.5,0, 0,0.5,0, // grass is dark green
+		  0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,0.5, // grass is dark green
             //0,0,1, 0,0,1, 0,0,1,                // front attic wall is blue
             //1,0,0, 1,0,0, 1,0,0, 1,0,0,         // left slope is green
             //0,1,0, 0,1,0, 0,1,0, 0,1,0,         // right slope is red

@@ -85,7 +85,6 @@ class Window	  // output window related routines
     static void idleCallback(void);
     static void reshapeCallback(int, int);
     static void displayCallback(void);
-	//static void viewFrustumCulling(void);
 		static void drawShape(int nVerts, float* vertices, float* normals);
 		static void processNormalKeys(unsigned char, int, int);
 		static void processSpecialKeys(int, int, int);
@@ -169,5 +168,13 @@ static float *sandal_normals;
 static float *sandal_texcoords;
 static int sandal_nIndices;
 static int *sandal_indices;
+
+// streetlight
+static int streetlight_nVerts;
+static float *streetlight_vertices;
+static float *streetlight_normals;
+static float *streetlight_texcoords;
+static int streetlight_nIndices;
+static int *streetlight_indices;
 
 #endif

@@ -17,8 +17,8 @@ static bool shadowMode = false;
 static bool godMode = false;
 //static vector< vector<int> > heightMap;
 // for camera matrix
-static Vector3 e = Vector3(0, 0, 10); // origin
-static Vector3 d = Vector3(0, 0, 0); // look at
+static Vector3 e = Vector3(0, 4, 0); // origin
+static Vector3 d = Vector3(0, 4, -1); // look at
 static Vector3 up = Vector3(0, 1, 0); // up
 static float anglex = 0.0;
 static float angley = 0.0;
@@ -52,10 +52,10 @@ static float rotated_inter2[360/degs][num_points][3];
 static float rotated_normal[360/degs][num_points][3];
 static float rotated_normal2[360/degs][num_points][3];
 
-static bool TURN_LIGHTS_ON = false;
+static bool TURN_LIGHTS_ON = true;
 
 static bool DEBUGGER = false;
-static bool DEBUG_LOAD_OBJS = false;
+static bool DEBUG_LOAD_OBJS = true;
 static bool DEBUG_DRAW_LIGHTS = true;
 
 static Shape shape;
@@ -353,6 +353,8 @@ void Window::displayCallback(void)
 			break;
 		case 8: // house scene1
 			shape.drawHouse();
+			//shape.drawScenGraph();
+			drawShape(streetlight_nVerts, streetlight_vertices, streetlight_normals);
 			break;
 		case 9: // house scene2
 			shape.drawHouse();
@@ -794,8 +796,7 @@ void Shape::drawRobot2() {
 	}
 }
 
-void Shape::nearestNeighbor(Vector4 vec1, Vector4* arr1)
-{
+void Shape::nearestNeighbor(Vector4 vec1, Vector4* arr1) {
 	Vector4 *arr2 = arr1;
 	Vector4 tmp1;
 	Vector4 tmp2;
@@ -825,15 +826,17 @@ void Shape::nearestNeighbor(Vector4 vec1, Vector4* arr1)
 	}
 	//cout << "min_dist: " << min_dist << '\n';
 	selected_point = min_index;
-
 }
 
-void Shape::loadData()
-{
+void Shape::loadData() {
+	/*
   // put code to load data model here
 	ObjReader::readObj("dragon_smooth.obj", dragon_nVerts, &dragon_vertices, &dragon_normals, &dragon_texcoords, dragon_nIndices, &dragon_indices);
 	ObjReader::readObj("bunny_n.obj", bunny_nVerts, &bunny_vertices, &bunny_normals, &bunny_texcoords, bunny_nIndices, &bunny_indices);
 	ObjReader::readObj("sandal.obj", sandal_nVerts, &sandal_vertices, &sandal_normals, &sandal_texcoords, sandal_nIndices, &sandal_indices);
+	*/
+
+	ObjReader::readObj("cblock32.obj", streetlight_nVerts, &streetlight_vertices, &streetlight_normals, &streetlight_texcoords, streetlight_nIndices, &streetlight_indices);
 }
 
 void Shape::calculateStuff(int nVerts, float *vertices) {
@@ -895,12 +898,13 @@ void Shape::calculateStuff(int nVerts, float *vertices) {
 	shape.scale.m[2][2] = scaling_z;
 
 	cout << "scaling factor : " << scaling_x << ", " << scaling_y <<  ", " << scaling_z <<"\n\n";
-
 }
 
 void Window::drawShape(int nVerts, float *vertices, float *normals) {
 	glBegin(GL_TRIANGLES);
 	for (int i=0; i<nVerts/3; i++) {
+		glColor3f(1,1,1);
+		/*
 		if (red == true) {
 			// red
 			glColor3f(0.5,0.5,0.5);
@@ -911,6 +915,7 @@ void Window::drawShape(int nVerts, float *vertices, float *normals) {
 			glColor3f(0.5,0.5,0.5);
 			red = true;
 		}
+		*/
 		for (int v=0; v<3; v++) {
 			glNormal3f(normals[9*i+3*v], normals[(9*i)+(3*v)+1], normals[(9*i)+(3*v)+2]);
 			glVertex3f(vertices[9*i+3*v], vertices[(9*i)+(3*v)+1], vertices[(9*i)+(3*v)+2]);
@@ -948,9 +953,7 @@ Matrix4& Shape::getCameraMatrix() {
 	return shape.camera;
 }
 
-int main(int argc, char *argv[])
-{
-
+int main(int argc, char *argv[]) {
   float specular[]  = {1.0, 1.0, 1.0, 1.0};
   float shininess[] = {100.0};
 
@@ -978,7 +981,7 @@ int main(int argc, char *argv[])
   glDisable(GL_LIGHTING);
   glShadeModel(GL_SMOOTH);             	      // set shading to smooth
   glMatrixMode(GL_PROJECTION);
-  gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
+  gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000000);
   // Generate material properties:
   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
   glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
@@ -991,8 +994,8 @@ int main(int argc, char *argv[])
   
 		GLfloat light_ambient[] = { 0.0, 0.0, 0.0, 1.0 };
 
-		GLfloat light_diffuse_d[] = { 1.0, 0.0, 0.0, 1.0 };
-		GLfloat light_specular_d[] = { 1.0, 0.0, 0.0, 1.0 };
+		GLfloat light_diffuse_d[] = { 0.5, 0.5, 0.5, 1.0 };
+		GLfloat light_specular_d[] = { 0.5, 0.5, 0.5, 1.0 };
 
 		GLfloat light_diffuse_p[] = { 0.0, 1.0, 0.0, 1.0 };
 		GLfloat light_specular_p[] = { 0.0, 1.0, 0.0, 1.0 };
@@ -1028,7 +1031,6 @@ int main(int argc, char *argv[])
 			shape.spot.disable();
 	}
 	
-
   // Install callback functions:
   glutDisplayFunc(Window::displayCallback);
   glutReshapeFunc(Window::reshapeCallback);
@@ -1058,10 +1060,8 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-void Shape::initializeHeightMap()
-{
-	for (int i = 0; i < 84; i+=3) // else 84or  126
-	{
+void Shape::initializeHeightMap() {
+	for (int i = 0; i < 84; i+=3) { // else 84 or  126
 		if (heightMap[house_vertices[i]+20][house_vertices[i+2]+20] < house_vertices[i+1]) {
 			heightMap[house_vertices[i]+20][house_vertices[i+2]+20] = house_vertices[i+1];
 		}
@@ -1073,12 +1073,9 @@ void Shape::initializeHeightMap()
 	vector <int> miny;
 	vector <int> maxy;
 	//vector <int> indexes; // minx, maxx, miny, maxy
-	for (int i = 0; i < 41; i++)
-	{
-	  for (int j = 0; j < 41; j++)
-	  {
-		  if (heightMap[i][j] != INT_MIN)
-		  {
+	for (int i = 0; i < 41; i++) {
+	  for (int j = 0; j < 41; j++) {
+		  if (heightMap[i][j] != INT_MIN) {
 			  if(find(tmp.begin(), tmp.end(), heightMap[i][j]) == tmp.end()) {
 				  tmp.push_back(heightMap[i][j]);
 				  minx.push_back(i);
@@ -1087,19 +1084,19 @@ void Shape::initializeHeightMap()
 				  maxy.push_back(j);
 			  }
 			  else {
-				finder = find(tmp.begin(), tmp.end(), heightMap[i][j]) - tmp.begin();
-				if (i < minx[finder]){
-					minx[finder] = i;
-				}
-				if (i > maxx[finder]){
-					maxx[finder] = i;
-				}
-				if (j < miny[finder]){
-					miny[finder] = j;
-				}
-				if (j > maxy[finder]){
-					maxy[finder] = j;
-				}
+					finder = find(tmp.begin(), tmp.end(), heightMap[i][j]) - tmp.begin();
+					if (i < minx[finder]) {
+						minx[finder] = i;
+					}
+					if (i > maxx[finder]) {
+						maxx[finder] = i;
+					}
+					if (j < miny[finder]) {
+						miny[finder] = j;
+					}
+					if (j > maxy[finder]) {
+						maxy[finder] = j;
+					}
 			  }
 			 //cout << "i: " << i << ", j: " << j << ", val: " << heightMap[i][j] << "\n";
 		  }
@@ -1451,7 +1448,9 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			{
 				i = -1;
 			}
-			shape.updateCameraMatrix(0,i*100, 0);
+			d = Vector3(0,0,0);
+			up = Vector3(0,0,1);
+			shape.updateCameraMatrix(0,i*500, 0);
 
 	}
 	cout << "--------------------\nbefore: \n";
@@ -1464,7 +1463,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	cout << "tmpx: "<< tmpx << ", tmpz: " << tmpz << '\n';
 	//cout << e.getX() << e.getZ() << '\n';
 	//if (heightMap[e.getX()][e.getZ()] != 0) {
-	shape.updateCameraMatrix(0, heightMap[tmpx+20][tmpz+20] - e.getY(), 0);
+	//shape.updateCameraMatrix(0, heightMap[tmpx+20][tmpz+20] - e.getY(), 0);
 	cout << "jumped up a building\n";
 		//e.getY() = heightMap[e.getX()][e.getZ()];
 	//}

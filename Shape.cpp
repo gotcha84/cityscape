@@ -20,7 +20,7 @@ GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
 Vector3 lightPos = Vector3(0, 0, 0);
 
-static bool warp = false;
+static bool warp = true;
 static float speed_up = false;
 static float sun_speed = 0.1;
 static bool shadowMode = false;
@@ -1318,11 +1318,7 @@ Matrix4& Shape::getCameraMatrix() {
 	return shape.camera;
 }
 
-int main(int argc, char *argv[])
-{
-
-	
-
+int main(int argc, char *argv[]) {
   float specular[]  = {1.0, 1.0, 1.0, 1.0};
   float shininess[] = {100.0};
 
@@ -1399,10 +1395,6 @@ int main(int argc, char *argv[])
 			shape.spot.disable();
 	}
 
-	
-	
-	
-
   // Install callback functions:
   glutDisplayFunc(Window::displayCallback);
   glutReshapeFunc(Window::reshapeCallback);
@@ -1422,9 +1414,9 @@ int main(int argc, char *argv[])
 	if (DEBUG_LOAD_OBJS)
 		shape.loadData();
 
-	glutSetCursor(GLUT_CURSOR_NONE);
-	shape.initializeHeightMap();
+	//glutSetCursor(GLUT_CURSOR_NONE);
 	
+	shape.initializeHeightMap();
 	shape.initializeShadows();
 	shape.initializeHeightMap();
 
@@ -1624,6 +1616,14 @@ void Shape::updateLookAtVector() {
 	
 	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
+	//tmp.print();
+	float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
+	tmp.rotateY(rad_anglex_change);
+	
+	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
+	
+	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp.transpose();
 	float rad_angley_change = 3.14*(angley_change/10)/180.0;
 
 	tmp.rotateX(rad_angley_change);
@@ -1637,10 +1637,11 @@ void Shape::updateLookAtVector() {
 
 	up = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
 	
-	
 	updateCameraMatrix(0, 0, 0);
+
 	//cout << "angley_change: " << angley_change << '\n';
 	//cout << "angley: " << angley << '\n';
+	
 	/*
 	cout << "after: \n";
 	cout << "d: ";
@@ -1648,7 +1649,6 @@ void Shape::updateLookAtVector() {
 	cout << "e: ";
 	e.print();
 	*/
-
 }
 
 double Shape::getAngle() {
@@ -1909,13 +1909,12 @@ void Window::processMouseMove(int x, int y) {
 	*/
 	if (x_mouse != x) {
 		anglex_change = float(x_mouse-x)/anglex_factor;
-		//cout << "anglex change: " << anglex_change << '\n';
 	}
 	if (y_mouse != y) {
-		angley_change = float(y-y_mouse)/angley_factor;
+		angley_change = float(y_mouse-y)/angley_factor;
 		float tmp = angley;
 		angley+=angley_change;
-		//cout << "HIHI: " << angley << " != " << tmp << '\n';
+
 		if (angley > 90.0) {
 			angley = 90.0;
 			angley_change = 0.0;
@@ -1924,16 +1923,16 @@ void Window::processMouseMove(int x, int y) {
 			angley = -90.0;
 			angley_change = 0.0;
 		}
-		//cout << "anglex change: " << angley_change << '\n';
 	}
 	
-	x_mouse = x;
-	y_mouse = y;
 	if (warp == true) {
 		if (x != Window::width/2 || y != Window::height/2) {
-		glutWarpPointer(Window::width/2, Window::height/2);
+			glutWarpPointer(Window::width/2, Window::height/2);
 		}
 	}
+
+	x_mouse = x;
+	y_mouse = y;
 
 	//cout << "(" << x << "," << y << ")\n";
 }

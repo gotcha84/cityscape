@@ -1,7 +1,7 @@
 #ifndef _SHAPE_H_
 #define _SHAPE_H_
 
-
+#include "scene.h"
 #include "shader.h"
 #include "Vector3.h"
 #include "Matrix4.h"
@@ -14,6 +14,10 @@
 #include "Cone.h"
 #include "Torus.h"
 #include "Tetrahedron.h"
+#include "TIMER.h"
+#include "FPS_COUNTER.h"
+#include "GLee.h"
+#include <GL/glut.h>
 
 class Shape
 {
@@ -74,6 +78,8 @@ class Shape
 		void updateCameraMatrix(float dx,float dy,float dz);
 		void updateLookAtVector();
 		void initializeHeightMap();
+		void makeShadows();
+		void initializeShadows();
 
 };
 
@@ -85,6 +91,7 @@ class Window	  // output window related routines
     static void idleCallback(void);
     static void reshapeCallback(int, int);
     static void displayCallback(void);
+	//static void viewFrustumCulling(void);
 		static void drawShape(int nVerts, float* vertices, float* normals);
 		static void processNormalKeys(unsigned char, int, int);
 		static void processSpecialKeys(int, int, int);
@@ -117,12 +124,13 @@ static float house_vertices[] = {
 static float house_colors[] = { 
             1,0,0, 1,0,0, 1,0,0, 1,0,0,  // front is red
             0,1,0, 0,1,0, 0,1,0, 0,1,0,  // left is green
-            1,1,0, 1,1,0, 1,1,0, 1,1,0,  // back is purple
+            1,1,0, 1,1,0, 1,1,0, 1,1,0,  // back is yellow
             0,1,1, 0,1,1, 0,1,1, 0,1,1,  // right is cyan
             0,0,1, 0,0,1, 0,0,1, 0,0,1,  // top is blue
             0,0,1, 0,0,1, 0,0,1, 0,0,1,  // bottom is blue
   
-            0,0.5,0, 0,0.5,0, 0,0.5,0, 0,0.5,0, // grass is dark green
+           // 0,0.5,0, 0,0.5,0, 0,0.5,0, 0,0.5,0, // grass is dark green
+		  0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,0.5, // grass is dark green
             //0,0,1, 0,0,1, 0,0,1,                // front attic wall is blue
             //1,0,0, 1,0,0, 1,0,0, 1,0,0,         // left slope is green
             //0,1,0, 0,1,0, 0,1,0, 0,1,0,         // right slope is red
@@ -168,13 +176,5 @@ static float *sandal_normals;
 static float *sandal_texcoords;
 static int sandal_nIndices;
 static int *sandal_indices;
-
-// streetlight
-static int streetlight_nVerts;
-static float *streetlight_vertices;
-static float *streetlight_normals;
-static float *streetlight_texcoords;
-static int streetlight_nIndices;
-static int *streetlight_indices;
 
 #endif

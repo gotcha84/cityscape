@@ -52,7 +52,7 @@ static float rotated_inter2[360/degs][num_points][3];
 static float rotated_normal[360/degs][num_points][3];
 static float rotated_normal2[360/degs][num_points][3];
 
-static bool TURN_LIGHTS_ON = true;
+static bool TURN_LIGHTS_ON = false;
 
 static bool DEBUGGER = false;
 static bool DEBUG_LOAD_OBJS = true;
@@ -836,7 +836,7 @@ void Shape::loadData() {
 	ObjReader::readObj("sandal.obj", sandal_nVerts, &sandal_vertices, &sandal_normals, &sandal_texcoords, sandal_nIndices, &sandal_indices);
 	*/
 
-	ObjReader::readObj("cblock32.obj", streetlight_nVerts, &streetlight_vertices, &streetlight_normals, &streetlight_texcoords, streetlight_nIndices, &streetlight_indices);
+	ObjReader::readObj("cblock3.obj", streetlight_nVerts, &streetlight_vertices, &streetlight_normals, &streetlight_texcoords, streetlight_nIndices, &streetlight_indices);
 }
 
 void Shape::calculateStuff(int nVerts, float *vertices) {
@@ -901,7 +901,7 @@ void Shape::calculateStuff(int nVerts, float *vertices) {
 }
 
 void Window::drawShape(int nVerts, float *vertices, float *normals) {
-	glBegin(GL_TRIANGLES);
+	glBegin(CP_RECTANGLE);
 	for (int i=0; i<nVerts/3; i++) {
 		glColor3f(1,1,1);
 		/*

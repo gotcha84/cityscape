@@ -336,7 +336,7 @@ void Window::displayCallback(void)
 		//shape.getProjectionMatrix().print();
 	}
 	*/
-	shape.getModelViewMatrix().print();
+	//shape.getModelViewMatrix().print();
 	//shape.getProjectionMatrix().print();
 
 	Material cube = Material(GL_FRONT_AND_BACK);
@@ -388,7 +388,7 @@ void Window::displayCallback(void)
 			break;
 		case 8: // house scene1
 			// uncomment below for rotating lights + shadows
-			//shape.initializeShadows();
+			shape.initializeShadows();
 			shape.makeShadows();
 			break;
 		case 9: // house scene2
@@ -1931,7 +1931,7 @@ void Window::processMouseMove(int x, int y) {
 	y_mouse = y;
 	if (warp == true) {
 		if (x != Window::width/2 || y != Window::height/2) {
-		glutWarpPointer(Window::width/2, Window::height/2);
+		//glutWarpPointer(Window::width/2, Window::height/2);
 		}
 	}
 

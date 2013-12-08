@@ -63,7 +63,6 @@ static double spin_angle = 0.000;
 static int shape_key = 8;
 
 static bool red = false;
-static bool fullscreen = false;
 
 static bool left_clicked = false;
 static bool right_clicked = false;
@@ -96,6 +95,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
+static bool fullscreen = true;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -417,7 +417,6 @@ void Window::displayCallback(void)
 		angley_change = 0.0;
 		
 	}
-	shape.drawLookAtPoint();
 	
 	spin_leftarm+=0.00*leftarm_dir;
 	spin_rightarm+=0.00*rightarm_dir;
@@ -957,8 +956,17 @@ int main(int argc, char *argv[])
 
   glutInit(&argc, argv);      	      	      // initialize GLUT
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);   // open an OpenGL context with double buffering, RGB colors, and depth buffering
-  glutInitWindowSize(Window::width, Window::height);      // set initial window size
-  glutCreateWindow("OpenGL Cube for CSE167");    	      // open window and set window title
+	if (fullscreen) {
+		Window::width = 1366;
+		Window::height = 768;
+	}
+	else {
+		Window::width = 512;
+		Window::height = 512;
+	}
+	glutInitWindowSize(Window::width, Window::height);      // set initial window size
+  glutCreateWindow("CityScape");    	      // open window and set window title
+	if (fullscreen) glutFullScreen();
   glDisable(GL_LIGHTING);
   
   
@@ -969,8 +977,8 @@ int main(int argc, char *argv[])
   glDisable(GL_CULL_FACE);     // disable backface culling to render both sides of polygons
   glDisable(GL_LIGHTING);
   glShadeModel(GL_SMOOTH);             	      // set shading to smooth
-  glMatrixMode(GL_PROJECTION); 
-  gluPerspective(90, 1.0, 0.1, 1000);
+  glMatrixMode(GL_PROJECTION);
+  gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
   // Generate material properties:
   glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
   glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
@@ -1043,7 +1051,7 @@ int main(int argc, char *argv[])
 		shape.loadData();
 
 	//glutSetCursor(GLUT_CURSOR_NONE);
-	  shape.initializeHeightMap();
+	shape.initializeHeightMap();
 	
 	glutMainLoop();
 
@@ -1295,6 +1303,10 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 
 	switch (key) 
 	{
+		case 27: // Escape key
+			glutDestroyWindow(glutGetWindow());
+			exit(0);
+			break;
 		/*
 		case 'c':
 			// reverse the direction of the spin
@@ -1363,16 +1375,22 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			break;
 		case 'f': //toggle screenmode
 			if(!fullscreen) {
+				Window::width  = 1366;
+				Window::height = 768;
+				glutReshapeWindow(Window::width, Window::height);
+				glutPositionWindow(10, 10);
         glutFullScreen();
         fullscreen = true;
 			} 
 			else {
+				Window::width = 512;
+				Window::height = 512;
         glutReshapeWindow(Window::width, Window::height);
-        glutPositionWindow(100, 100);
+        glutPositionWindow(10, 10);
         fullscreen = false;
 			}
 	    break;
-		*/
+			*/
 		case't':
 			speed_up = !speed_up;
 			break;
@@ -1536,7 +1554,7 @@ void Window::processMouseMove(int x, int y) {
 		//cout << "anglex change: " << anglex_change << '\n';
 	}
 	if (y_mouse != y) {
-		angley_change = float(y-y_mouse)/angley_factor;
+		angley_change = float(y_mouse-y)/angley_factor;
 		float tmp = angley;
 		angley+=angley_change;
 		cout << "HIHI: " << angley << " != " << tmp << '\n';

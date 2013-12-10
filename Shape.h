@@ -85,7 +85,8 @@ class Shape {
 		void initializeHeightMap();
 		void makeShadows();
 		void initializeShadows();
-
+		void findminsmaxs();
+		void gravity(int, int);
 };
 
 class Window { // output window related routines
@@ -106,6 +107,7 @@ class Window { // output window related routines
 	static void drawPointLight();
 	static void drawSpotLight();
 	static void drawSkyBox();
+	
 };
 
 // house

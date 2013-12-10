@@ -10,17 +10,21 @@
 #include <algorithm>
 
 using namespace std;
-
+static bool falling = false;
+static float velocity = 0.5;
+static int counthihi = 0.0;
+static float curr_height = 0.0;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
-static bool showShadows = true;
+static bool moved = false;
+static bool showShadows = false;
 FPS_COUNTER fpsCounter;
 const int shadowMapSize=512;
 GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
 Vector3 lightPos = Vector3(0, 0, 0);
 
-static bool warp = false;
+static bool warp = true;
 static float speed_up = false;
 static float sun_speed = 0.1;
 static bool shadowMode = false;
@@ -41,7 +45,37 @@ static float angley_factor = 1.0;
 static float walk_x_factor = 2.0;
 static float walk_y_factor = 2.0;
 static float walk_z_factor = 2.0;
-static vector<vector<int>> heightMap;
+
+
+
+/*
+-278.163 minx
+-0.00
+-463.471
+740.302 maxx
+356.627
+322.844
+*/
+
+static int x_shift = 278;
+static int z_shift = 463;
+static vector<vector<int> > heightMap(1019, vector<int>(787, 0));
+
+
+/*
+-97.47  minx
+-0.00   y
+-308.47 z
+643.49  maxx
+141.73  y
+171.61  z
+*/
+/*
+static int x_shift = 97;
+static int z_shift = 308;
+static vector<vector<int> > heightMap(741, vector<int>(481, 0));
+*/
+
 
 
 static int selected_point = -1;
@@ -64,7 +98,7 @@ static float rotated_inter2[360/degs][num_points][3];
 static float rotated_normal[360/degs][num_points][3];
 static float rotated_normal2[360/degs][num_points][3];
 
-static bool TURN_LIGHTS_ON = true;
+static bool TURN_LIGHTS_ON = false;
 
 static bool DEBUGGER = false;
 static bool DEBUG_LOAD_OBJS = false;
@@ -312,8 +346,9 @@ void Shape::updateCameraMatrix(float dx, float dy, float dz) {
 // when glutPostRedisplay() was called.
 void Window::displayCallback(void)
 {
+	//cout << "hi\n";
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear color and depth buffers
-  
+  //glClear(GL_COLOR_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
 	glMatrixMode(GL_PROJECTION);
@@ -388,8 +423,23 @@ void Window::displayCallback(void)
 			break;
 		case 8: // house scene1
 			// uncomment below for rotating lights + shadows
-			shape.initializeShadows();
-			shape.makeShadows();
+			if (moved == true) {
+
+				//shape.initializeShadows();
+				moved = false;
+				//shape.makeShadows();
+			}
+			if (showShadows == true) {
+				shape.makeShadows();
+			}
+			else {
+		//		glMatrixMode(GL_MODELVIEW);
+	//glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
+	//glMatrixMode(GL_PROJECTION);
+	//glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
+				shape.drawHouse();
+				Window::drawShape(city_nVerts, city_vertices, city_normals);
+			}
 			break;
 		case 9: // house scene2
 			shape.drawHouse();
@@ -470,7 +520,26 @@ void Window::displayCallback(void)
 	glPopMatrix();
 	*/
 	//angle_change = 0.0;
-
+	
+	int tmpx;
+	int tmpz;
+	
+	if (e.getX() < 0) {
+		tmpx = -1*floor((-1.0*e.getX())+0.5);
+	}
+	else {
+		tmpx = floor(e.getX()+0.5);
+	}			
+	if (e.getZ() < 0) {
+		tmpz = -1*floor((-1.0*e.getZ())+0.5);
+	}
+	else {
+		tmpz = floor(e.getZ()+0.5);
+	}
+	if (falling == true) {
+		//cout << "falling\n";
+		shape.gravity(tmpx, tmpz);
+	}
 	if (anglex_change != 0.0 || angley_change != 0.0) {
 		shape.updateLookAtVector();
 		anglex_change = 0.0;
@@ -500,6 +569,7 @@ void Window::displayCallback(void)
 
   glFlush();  
   glutSwapBuffers();
+glutPostRedisplay();
 }
 
 void Window::drawDirectionalLight() {
@@ -583,7 +653,10 @@ void Shape::initializeShadows() {
 	glLoadIdentity();
 	gluLookAt(e.getX(), e.getY(), e.getZ(),
 				d.getX(), d.getY(), d.getZ(),
-				up.getX(), up.getY(), up.getZ());
+				//0, 0, 0,
+				0, 1, 0);
+				
+				//up.getX(), up.getY(), up.getZ());
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 		cameraViewMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -607,7 +680,10 @@ void Shape::initializeShadows() {
 	gluLookAt(sqrt(100.0), sqrt(100.0), sqrt(100.0),
 	//gluLookAt(	lightPos.getX(), lightPos.getY(), lightPos.getZ(),
 				d.getX(), d.getY(), d.getZ(),
-				up.getX(), up.getY(), up.getZ());
+				//0, 0, 0,
+				0, 1, 0);
+				
+				//up.getX(), up.getY(), up.getZ());
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	lightViewMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -666,9 +742,6 @@ void Shape::makeShadows() {
 	glCullFace(GL_BACK);
 	glShadeModel(GL_SMOOTH);
 	glColorMask(1, 1, 1, 1);
-	
-
-	
 
 	//2nd pass - Draw from camera's point of view
 	glClear(GL_DEPTH_BUFFER_BIT);
@@ -681,7 +754,7 @@ void Shape::makeShadows() {
 
 	glViewport(0, 0, Window::width, Window::height);
 	//lightPos.print();
-	GLfloat tmp[3] = {GLfloat(lightPos.getX()), GLfloat(lightPos.getY()), GLfloat(lightPos.getZ())};
+	GLfloat tmp[3] = {GLfloat(10), GLfloat(10), GLfloat(0)};
 	GLfloat almostwhite[3] = {GLfloat(0.2), GLfloat(0.2), GLfloat(0.2)};
 	GLfloat black[3] = {GLfloat(0), GLfloat(0), GLfloat(0)};
 	GLfloat white[3] = {GLfloat(1), GLfloat(1), GLfloat(1)};
@@ -697,6 +770,9 @@ void Shape::makeShadows() {
 	glEnable(GL_LIGHTING);
 
 	shape.drawHouse();
+	//DrawScene(angle);
+	
+
 
 	//3rd pass
 	//Draw with bright light
@@ -785,14 +861,14 @@ void Shape::makeShadows() {
 	
 	//Set matrices for ortho
 	
-	//glMatrixMode(GL_PROJECTION);
-	//glPushMatrix();
-	//glLoadIdentity();
-	//gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
 
-	//glMatrixMode(GL_MODELVIEW);
-	//glPushMatrix();
-	//glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
 	
 	//Print text
 	//glRasterPos2f(-1.0f, 0.9f);
@@ -806,12 +882,16 @@ void Shape::makeShadows() {
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
 	
-	glFinish();
-	glutSwapBuffers();
-	glutPostRedisplay();
+	//glFinish();
+	//glutSwapBuffers();
+	//glutPostRedisplay();
 
 	}
 	else {
+			glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 		shape.drawHouse();
 	}
 }
@@ -1265,7 +1345,7 @@ void Window::drawShape(int nVerts, float *vertices, float *normals) {
 		curr[8], curr[9], curr[10], curr[11],
 		curr[12], curr[13], curr[14], curr[15]
 	);
-	curr_mv.scale(city_scale, city_scale, city_scale);
+	//curr_mv.scale(city_scale, city_scale, city_scale);
 	glLoadMatrixf(curr_mv.getGLMatrix());
 	
 	glBegin(GL_TRIANGLES);
@@ -1320,7 +1400,6 @@ Matrix4& Shape::getCameraMatrix() {
 
 int main(int argc, char *argv[])
 {
-
 	
 
   float specular[]  = {1.0, 1.0, 1.0, 1.0};
@@ -1328,8 +1407,11 @@ int main(int argc, char *argv[])
 
   glutInit(&argc, argv);      	      	      // initialize GLUT
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);   // open an OpenGL context with double buffering, RGB colors, and depth buffering
-  glutInitWindowSize(Window::width, Window::height);      // set initial window size
+  glutInitWindowSize(1366, 768);      // set initial window size
   glutCreateWindow("OpenGL Cube for CSE167");    	      // open window and set window title
+  if (fullscreen) {
+	  glutFullScreen();
+  }
  // glGetString(GL_EXTENSIONS);
 	if(!GLEE_ARB_depth_texture || !GLEE_ARB_shadow)
 	{
@@ -1419,15 +1501,15 @@ int main(int argc, char *argv[])
 	glutPassiveMotionFunc(Window::processMouseMove);
 	
 	// load obj files
-	if (DEBUG_LOAD_OBJS)
-		shape.loadData();
-
+	//if (DEBUG_LOAD_OBJS)
+	shape.loadData();
+	
 	glutSetCursor(GLUT_CURSOR_NONE);
 	shape.initializeHeightMap();
+	//shape.initializeShadows();
+	shape.findminsmaxs();
 	
-	shape.initializeShadows();
-	shape.initializeHeightMap();
-
+	//shape.findminsmaxs();
 	/*
 	cout << "camproj: \n";
 	cameraProjectionMatrix.print();
@@ -1518,86 +1600,173 @@ void Window::drawSkyBox() {
 		glPopMatrix();
 }
 
-void Shape::initializeHeightMap() {
-	heightMap.resize(41, vector<int>(41, INT_MIN));
+void Shape::findminsmaxs() {
+	float minx = FLT_MAX;
+	float miny = FLT_MAX;
+	float minz = FLT_MAX;
+	float maxx = FLT_MIN;
+	float maxy = FLT_MIN;
+	float maxz = FLT_MIN;
 
-	for (int i = 0; i < 84; i+=3) { // else 84 or  126
-		if (heightMap[house_vertices[i]+20][house_vertices[i+2]+20] < house_vertices[i+1]) {
-			heightMap[house_vertices[i]+20][house_vertices[i+2]+20] = house_vertices[i+1];
+	for (int i = 0; i < city_nVerts*3; i+=3) {
+		if (city_vertices[i] < minx) {
+			minx = city_vertices[i];
+		}
+		if (city_vertices[i+1] < miny) {
+			miny = city_vertices[i+1];
+		}
+		if (city_vertices[i+2] < minz) {
+			minz = city_vertices[i+2];
+		}
+		if (city_vertices[i] > maxx) {
+			maxx = city_vertices[i];
+		}
+		if (city_vertices[i+1] > maxy) {
+			maxy = city_vertices[i+1];
+		}
+		if (city_vertices[i+2] > maxz) {
+			maxz = city_vertices[i+2];
 		}
 	}
-	int finder;
-	vector <int> tmp;
-	vector <int> minx;
-	vector <int> maxx;
-	vector <int> miny;
-	vector <int> maxy;
-	//vector <int> indexes; // minx, maxx, miny, maxy
-	for (int i = 0; i < 41; i++)
-	{
-	  for (int j = 0; j < 41; j++)
-	  {
-		  if (heightMap[i][j] != INT_MIN)
-		  {
-			  if(find(tmp.begin(), tmp.end(), heightMap[i][j]) == tmp.end()) {
-				  tmp.push_back(heightMap[i][j]);
-				  minx.push_back(i);
-				  maxx.push_back(i);
-				  miny.push_back(j);
-				  maxy.push_back(j);
-			  }
-			  else {
-				finder = find(tmp.begin(), tmp.end(), heightMap[i][j]) - tmp.begin();
-				if (i < minx[finder]){
-					minx[finder] = i;
-				}
-				if (i > maxx[finder]){
-					maxx[finder] = i;
-				}
-				if (j < miny[finder]){
-					miny[finder] = j;
-				}
-				if (j > maxy[finder]){
-					maxy[finder] = j;
-				}
-			  }
-			 //cout << "i: " << i << ", j: " << j << ", val: " << heightMap[i][j] << "\n";
-		  }
-	  }
+	cout << minx << '\n';
+	cout << miny << '\n';
+	cout << minz << '\n';
+	cout << maxx << '\n';
+	cout << maxy << '\n';
+	cout << maxz << '\n';
+}
 
-	  //cout << '\n';
-  }
-	vector<int> tmp2 = tmp;
-
-	sort(tmp.begin(), tmp.end()); // tmp = sorted, tmp2 = unsorted 
-	//cout << tmp.size() << '\n';
-	//cout << "HI\n";
-	for (int i = 0; i < tmp.size(); i++)
-	{
-	  finder = find(tmp2.begin(), tmp2.end(), tmp[i]) - tmp2.begin(); 
-	  for (int j = minx[finder]; j < maxx[finder]+1; j++)
-	  {
-		  for (int k = miny[finder]; k < maxy[finder]+1; k++)
-		  {
-			  heightMap[j][k] = tmp[i];
-		  }
-	  }
+void Shape::gravity(int x, int y) {
+	int needed_height = heightMap[x+x_shift][y+z_shift];
+	if (curr_height - velocity <= needed_height) {
+		updateCameraMatrix(0, needed_height-curr_height, 0);
+		falling = false;
+		curr_height = needed_height;
+		cout << "fell\n";
 	}
-	for (int i = 0; i < 41; i++)
+	else {
+		cout << "currently falling\n";
+		updateCameraMatrix(0, -1.0*velocity, 0);
+		curr_height-=velocity;
+	}
+}
+
+void Shape::initializeHeightMap() {
+	//cout << city_nVerts << '\n';
+	//cout << city_nIndices << '\n';
+	float x_interval;
+	float y_interval;
+	float z_interval;
+	float changex;
+	float changey;
+	float changez;
+	float change;
+	float tmpx;
+	float tmpy;
+	float tmpz;
+	int counter;
+	int tmptmpx;
+	int tmptmpy;
+	int tmptmpz;
+	float minx;
+	float maxx;
+	float minz;
+	float maxz;
+	float miny;
+	float maxy;
+	float tmpminx;
+	float tmpminy;
+	float tmpminz;
+	float tmpmaxx;
+	float tmpmaxy;
+	float tmpmaxz;
+
+	//int arr[1][2] = {{0, 1}};
+	int arr[4][2] = {{0, 1}, {0, 3}, {1, 3}, {2, 3}};  
+	//int arr[5][2] = {{0, 1}, {0, 2}, {0, 3}, {1, 3}, {2, 3}};   
+	for (int i = 0; i < city_nVerts*3; i++)
 	{
-	  for (int j = 0; j < 41; j++)
+		city_vertices[i]/=10.0;
+	}
+
+	
+	for (int i = 0; i < city_nVerts*3; i+=12) { // else 84 or  126
+		tmpminx = min(city_vertices[i], city_vertices[i+3], city_vertices[i+6], city_vertices[i+9]); 
+		tmpmaxx = max(city_vertices[i], city_vertices[i+3], city_vertices[i+6], city_vertices[i+9]); 
+		tmpminy = min(city_vertices[i+1], city_vertices[i+4], city_vertices[i+7], city_vertices[i+10]); 
+		tmpmaxy = max(city_vertices[i+1], city_vertices[i+4], city_vertices[i+7], city_vertices[i+10]); 
+		tmpminz = min(city_vertices[i+2], city_vertices[i+5], city_vertices[i+8], city_vertices[i+11]); 
+		tmpmaxz = max(city_vertices[i+2], city_vertices[i+5], city_vertices[i+8], city_vertices[i+11]);
+
+		if (tmpminx < 0) {
+			minx = -1*floor((-1.0*tmpminx)+0.5);
+		}
+		else {
+			minx = floor(tmpminx+0.5);
+		}
+		if (tmpminz < 0) {
+			minz = -1*floor((-1.0*tmpminz)+0.5);
+		}
+		else {
+			minz = floor(tmpminz+0.5);
+		}
+		if (tmpmaxx < 0) {
+			maxx = -1*floor((-1.0*tmpmaxx)+0.5);
+		}
+		else {
+			maxx = floor(tmpmaxx+0.5);
+		}
+		if (tmpmaxz < 0) {
+			maxz = -1*floor((-1.0*tmpmaxz)+0.5);
+		}
+		else {
+			maxz = floor(tmpmaxz+0.5);
+		}
+		if (tmpminy < 0) {
+			miny = -1*floor((-1.0*tmpminy)+0.5);
+		}
+		else {
+			miny = floor(tmpminy+0.5);
+		}
+		if (tmpmaxy < 0) {
+			maxy = -1*floor((-1.0*tmpmaxy)+0.5);
+		}
+		else {
+			maxy = floor(tmpmaxy+0.5);
+		}
+		for (int j = minx; j < maxx; j++)
+		{
+			for (int k = minz; k < maxz; k++)
+			{
+				if (maxy > heightMap[j+x_shift][k+z_shift]) {
+					heightMap[j+x_shift][k+z_shift] = maxy;
+				}
+			}
+		}
+	}
+
+	
+	for (int i = 0; i < 1019; i++)
+	{
+	  for (int j = 0; j < 787; j++)
 	  {
-		  if (heightMap[i][j] == INT_MIN)
-		  {
-			  cout << "ERROR\n";
-		  }
-		  heightMap[i][j]+=4; // 4 feet tall
+		  //if (heightMap[i][j] != 0)
+		  //{
+			  heightMap[i][j]+=4;
+			 //j cout << "i: " << i << ", j: " << j << ", is: " << heightMap[i][j] << '\n';
+		 // }
+		 // heightMap[i][j]+=4; // 4 feet tall
 		  //else if (heightMap[i][j] == -4)
 		  //{
 			//  heightMap[i][j] = 0; // 4 feet tall
 		  //}
 	  }
 	}
+	
+
+	
+	
+	
 }
 
 
@@ -1614,13 +1783,22 @@ void Shape::drawLookAtPoint() {
 		//glVertex3f(e.getX(), e.getY(), e.getZ());
 		glColor3f(1, 1, 1);
 		//lightPos.print();
-		glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
+		glVertex3f(10, 10, 10);
 	glEnd();
 	//updateCameraMatrix(0, 0, 0);
 }
 
 void Shape::updateLookAtVector() {
 	Matrix4 tmp;
+
+	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp.transpose();
+	float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
+
+	tmp.rotateY(rad_anglex_change);
+
+	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
+
 	
 	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
@@ -1738,7 +1916,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 
 	Vector3 a_vec = Vector3(tmpa.get(0, 0), tmpa.get(0, 1), tmpa.get(0, 2));
 	Vector3 d_vec = Vector3(tmpd.get(0, 0), tmpd.get(0, 1), tmpd.get(0, 2));
-
+	moved = false;
 	switch (key) 
 	{
 		
@@ -1760,6 +1938,10 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 				toggle3 ? shape.spot.enable() : shape.spot.disable();
 				toggle3 ? cout << "spot ON\n" : cout << "spot OFF\n";
 			break;
+		case 27:
+			glutDestroyWindow(glutGetWindow());
+			exit(0);
+			break;
 		case '5':
 			shader_toggle = !shader_toggle;
 			if (shader_toggle)
@@ -1774,30 +1956,50 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			showShadows = !showShadows;
 			break;
 		case 'w':
-			shape.updateCameraMatrix(tmp_vec.getX()/walk_x_factor,0,tmp_vec.getZ()/walk_z_factor);
+			if (falling == false) {
+				moved = true;
+				shape.updateCameraMatrix(tmp_vec.getX()/walk_x_factor,0,tmp_vec.getZ()/walk_z_factor);
 			//cout << "walk forward\n";
+			}
 			break;
 		case 's':
-			shape.updateCameraMatrix(-1.0*tmp_vec.getX()/walk_x_factor,0,-1.0*tmp_vec.getZ()/walk_z_factor);
+			if (falling == false) {
+				moved = true;
+				shape.updateCameraMatrix(-1.0*tmp_vec.getX()/walk_x_factor,0,-1.0*tmp_vec.getZ()/walk_z_factor);
 			//cout << "walk back\n";
+				
+			}
 			break;
 		case 'a':
-			shape.updateCameraMatrix(a_vec.getX()/walk_x_factor,0,a_vec.getZ()/walk_z_factor);
+			if (falling == false) {
+				moved = true;
+				shape.updateCameraMatrix(a_vec.getX()/walk_x_factor,0,a_vec.getZ()/walk_z_factor);
 			//cout << "strafe left\n";
+			}
 			break;
 		case 'd':
-			shape.updateCameraMatrix(d_vec.getX()/walk_x_factor,0,d_vec.getZ()/walk_z_factor);
+			if (falling == false) {
+				moved = true;
+				shape.updateCameraMatrix(d_vec.getX()/walk_x_factor,0,d_vec.getZ()/walk_z_factor);
 			//cout << "strafe right\n";
+			}
 			break;
 		case 'r':
-			shape.updateCameraMatrix(0,1,0);
+			if (falling == false) {
+				moved = true;
+				shape.updateCameraMatrix(0,1,0);
 			//cout << "fly up\n";
+			}
 			break;
 		case 'f':
-			shape.updateCameraMatrix(0,-1,0);
+			if (falling == false) {
+				moved = true;
+				shape.updateCameraMatrix(0,-1,0);
 			//cout << "fly down\n";
+			}
 			break;
 		case 'g':
+			//moved = true;
 			godMode = !godMode;
 			int i = 1;
 			if (godMode == false) {
@@ -1814,15 +2016,60 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	cout << "e: ";
 	e.print();
 	*/
-	int tmpx = floor(e.getX() + 0.5);
-	int tmpz = floor(e.getZ() + 0.5);
+	int tmpx;
+	int tmpz;
+	
+	if (e.getX() < 0) {
+		tmpx = -1*floor((-1.0*e.getX())+0.5);
+	}
+	else {
+		tmpx = floor(e.getX()+0.5);
+	}			
+	if (e.getZ() < 0) {
+		tmpz = -1*floor((-1.0*e.getZ())+0.5);
+	}
+	else {
+		tmpz = floor(e.getZ()+0.5);
+	}
+
 	//cout << "tmpx: "<< tmpx << ", tmpz: " << tmpz << '\n';
 	//cout << e.getX() << e.getZ() << '\n';
-	//if (heightMap[e.getX()][e.getZ()] != 0) {
-	//shape.updateCameraMatrix(0, heightMap[tmpx+20][tmpz+20] - e.getY(), 0);
+	/*
+	if (heightMap[tmpx+x_shift][tmpz+z_shift] != curr_height) {
+		if (heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height) {
+			cout << "jumped up a building "<< counthihi << "\n";
+		}
+		if (heightMap[tmpx+x_shift][tmpz+z_shift] < curr_height) {
+			cout << "jumped down a building "<< counthihi << "\n";
+		}
+	shape.updateCameraMatrix(0, heightMap[tmpx+x_shift][tmpz+z_shift] - e.getY(), 0);
+	curr_height = heightMap[tmpx+x_shift][tmpz+z_shift];
+	//cout << "jumped up a building "<< counthihi << "\n";
+	counthihi++;
+		//e.getY() = heightMap[tmpx][tmpz];
+	}
+	*/
+	if (falling == false) {
+		if (heightMap[e.getX()+x_shift][e.getZ()+z_shift] != curr_height) {
+			if (heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height) {
+
+				cout << "teleporting up a building "<< counthihi << "\n";
+				shape.updateCameraMatrix(0, heightMap[tmpx+x_shift][tmpz+z_shift] - e.getY(), 0);
+				curr_height = heightMap[tmpx+x_shift][tmpz+z_shift];
+			}
+			else if (heightMap[tmpx+x_shift][tmpz+z_shift] < curr_height) {
+				falling = true;
+				cout << "jumped down a building "<< counthihi << "\n";
+				shape.gravity(tmpx, tmpz);
+			}
+	}
+	
+
 	//cout << "jumped up a building\n";
 		//e.getY() = heightMap[e.getX()][e.getZ()];
-	//}
+	}
+
+
 	/*
 	cout << "after: \n";
 	cout << "d: ";
@@ -1830,6 +2077,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	cout << "e: ";
 	e.print();
 	*/
+	//glutPostRedisplay();
 	
 }
 
@@ -1927,13 +2175,14 @@ void Window::processMouseMove(int x, int y) {
 		//cout << "anglex change: " << angley_change << '\n';
 	}
 	
-	x_mouse = x;
-	y_mouse = y;
 	if (warp == true) {
 		if (x != Window::width/2 || y != Window::height/2) {
-		//glutWarpPointer(Window::width/2, Window::height/2);
+			glutWarpPointer(Window::width/2, Window::height/2);
 		}
 	}
+
+	x_mouse = x;
+	y_mouse = y;
 
 	//cout << "(" << x << "," << y << ")\n";
 }

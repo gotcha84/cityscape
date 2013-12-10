@@ -17,7 +17,10 @@ static float curr_height = 0.0;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
 static bool moved = false;
+
 static bool showShadows = false;
+
+
 FPS_COUNTER fpsCounter;
 const int shadowMapSize=512;
 GLuint shadowMapTexture;
@@ -425,7 +428,6 @@ void Window::displayCallback(void)
 			// uncomment below for rotating lights + shadows
 			if (moved == true) {
 
-				//shape.initializeShadows();
 				moved = false;
 				//shape.makeShadows();
 			}
@@ -433,12 +435,10 @@ void Window::displayCallback(void)
 				shape.makeShadows();
 			}
 			else {
-		//		glMatrixMode(GL_MODELVIEW);
-	//glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
-	//glMatrixMode(GL_PROJECTION);
-	//glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
+
 				shape.drawHouse();
 				Window::drawShape(city_nVerts, city_vertices, city_normals);
+
 			}
 			break;
 		case 9: // house scene2
@@ -1956,6 +1956,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			showShadows = !showShadows;
 			break;
 		case 'w':
+
 			if (falling == false) {
 				moved = true;
 				shape.updateCameraMatrix(tmp_vec.getX()/walk_x_factor,0,tmp_vec.getZ()/walk_z_factor);
@@ -1963,21 +1964,26 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			}
 			break;
 		case 's':
+
 			if (falling == false) {
 				moved = true;
-				shape.updateCameraMatrix(-1.0*tmp_vec.getX()/walk_x_factor,0,-1.0*tmp_vec.getZ()/walk_z_factor);
+			shape.updateCameraMatrix(-1.0*tmp_vec.getX()/walk_x_factor,0,-1.0*tmp_vec.getZ()/walk_z_factor);
+
 			//cout << "walk back\n";
 				
 			}
 			break;
 		case 'a':
+
 			if (falling == false) {
 				moved = true;
 				shape.updateCameraMatrix(a_vec.getX()/walk_x_factor,0,a_vec.getZ()/walk_z_factor);
+
 			//cout << "strafe left\n";
 			}
 			break;
 		case 'd':
+
 			if (falling == false) {
 				moved = true;
 				shape.updateCameraMatrix(d_vec.getX()/walk_x_factor,0,d_vec.getZ()/walk_z_factor);
@@ -1985,21 +1991,28 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			}
 			break;
 		case 'r':
+
 			if (falling == false) {
 				moved = true;
 				shape.updateCameraMatrix(0,1,0);
+
 			//cout << "fly up\n";
 			}
 			break;
+			moved = true;
 		case 'f':
+
 			if (falling == false) {
 				moved = true;
 				shape.updateCameraMatrix(0,-1,0);
+
 			//cout << "fly down\n";
 			}
 			break;
 		case 'g':
-			//moved = true;
+
+			moved = true;
+
 			godMode = !godMode;
 			int i = 1;
 			if (godMode == false) {

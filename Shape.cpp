@@ -126,7 +126,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
-static bool fullscreen = false;
+static bool fullscreen = true;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -407,7 +407,7 @@ void Window::displayCallback(void) {
 		case 8: // house scene1
 			// uncomment below for rotating lights + shadows
 			if (moved) {
-				//shape.initializeShadows();
+				shape.initializeShadows();
 				moved = false;
 				//shape.makeShadows();
 			}
@@ -417,8 +417,8 @@ void Window::displayCallback(void) {
 			else {
 				shape.drawHouse();
 				shape.updateParticles();
-				shape.drawParticles();
 				Window::drawShape(city_nVerts, city_vertices, city_normals);
+				shape.drawParticles();
 			}
 			break;
 		case 9: // house scene2
@@ -678,6 +678,11 @@ void Shape::initializeShadows() {
 	lightProjectionMatrix.transpose();
 	lightViewMatrix.transpose();
 	
+	gluLookAt(
+		e.getX(), e.getY(), e.getZ(), 
+		d.getX(), d.getY(), d.getZ(),
+		0, 1, 0
+	);
 }
 
 void Shape::makeShadows() {
@@ -1540,13 +1545,27 @@ void Shape::updateParticles() {
 			y += vy;
 			z += vz;
 
+			/*
 			vx = 0.05*(rand()%3-1);
 			vy = 0.025*(rand()%2);
 			vz = 0.05*(rand()%3-1);
+			*/
+
+			float pos_vx = 0.01*(rand()%100+1);
+			float neg_vx = -0.01*(rand()%100+1);
+			bool pick_pos_vx = rand()%2;
+			
+			float pos_vz = 0.01*(rand()%100+1);
+			float neg_vz = -0.01*(rand()%100+1);
+			bool pick_pos_vz = rand()%2;
+
+			vx = 0.1* ((pick_pos_vx) ? pos_vx : neg_vx);
+			vy = 0.1*(0.01*(rand()%100+1));
+			vz = 0.1* ((pick_pos_vz) ? pos_vz : neg_vz);
 
 			particle[i].pos = Vector3(x,y,z);
 			particle[i].vel = Vector3(vx,vy,vz);
-			particle[i].age += 0.1;
+			particle[i].age += 0.2;
 		}
 	}
 }
@@ -1556,12 +1575,10 @@ void Shape::drawParticles() {
 	glPointSize(3);
 
 	glBegin(GL_POINTS);
-
 		for (int i=0; i<num_particles; i++) {
-			glColor4f(1-particle[i].age/particle[i].lifetime,rand()%2*(1-particle[i].age/particle[i].lifetime),0,1);
+			glColor3f(1-particle[i].age/particle[i].lifetime,rand()%2*(1-particle[i].age/particle[i].lifetime),0);
 			glVertex3f(particle[i].pos.getX(), particle[i].pos.getY(), particle[i].pos.getZ());
 		}
-
 	glEnd();
 }
 
@@ -1998,18 +2015,17 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 		case 'g':
 
 			moved = true;
-
 			godMode = !godMode;
-			if (godMode == false) {
+			if (!godMode) {
 				e = Vector3(0, 4, 10);
 				d = Vector3(0, 4, 9);
 				up = Vector3(0, 1, 0);
 				shape.updateCameraMatrix(0,0,0);
 			}
 			else {
-				e = Vector3(0,5000,0);
+				e = Vector3(0,1000,0);
 				d = Vector3(0,0,0);
-				up = Vector3(0,0,-1);
+				up = Vector3(1,0,0);
 				shape.updateCameraMatrix(0,0,0);
 			}
 	}

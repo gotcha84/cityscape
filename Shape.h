@@ -19,10 +19,21 @@
 #include "GLee.h"
 #include <GL/glut.h>
 
-struct point {
-  float x;
-  float y;
-	float z;
+struct Particle {
+	Vector3 pos;
+	Vector3 vel;
+	Vector4 color;
+	float rotate;
+	float age;
+	float lifetime;
+
+	Particle() {
+		pos = Vector3(0,0,0);
+		vel = Vector3(0,0,0);
+		color = Vector4(1,1,1,1);
+		age = 0;
+		lifetime = 0;
+	}
 };
 
 class Shape {
@@ -68,8 +79,6 @@ class Shape {
 		void drawHouse();
 		void drawRobot();
 		void drawRobot2();
-		void drawLookAtPoint();
-		//void drawLine();
 		void calculateBezierSurface();
 		void drawBezierSurface();
 		void calculateBezier();
@@ -81,11 +90,17 @@ class Shape {
 		unsigned char* loadPPM(const char*, int&, int&);
 		void computeBoundingBox(vector<vector<MatrixTransform*>>, int);
 		void updateCameraMatrix(float dx,float dy,float dz);
+
 		void updateLookAtVector();
+		
 		void initializeHeightMap();
+
 		void makeShadows();
 		void initializeShadows();
-
+		
+		void initializeParticles();
+		void updateParticles();
+		void drawParticles();
 };
 
 class Window { // output window related routines
@@ -132,7 +147,7 @@ static float house_colors[] = {
             0,0,1, 0,0,1, 0,0,1, 0,0,1,  // bottom is blue
   
            // 0,0.5,0, 0,0.5,0, 0,0.5,0, 0,0.5,0, // grass is dark green
-		  0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,0.5, 0.5,0.5,0.5, // grass is dark green
+						0,0.5,0, 0,0.5,0, 0,0.5,0, 0,0.5,0, // grass is dark green
             //0,0,1, 0,0,1, 0,0,1,                // front attic wall is blue
             //1,0,0, 1,0,0, 1,0,0, 1,0,0,         // left slope is green
             //0,1,0, 0,1,0, 0,1,0, 0,1,0,         // right slope is red

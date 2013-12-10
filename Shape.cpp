@@ -14,14 +14,14 @@ using namespace std;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
 static bool moved = false;
-static bool showShadows = true;
+static bool showShadows = false;
 FPS_COUNTER fpsCounter;
 const int shadowMapSize=512;
 GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
 Vector3 lightPos = Vector3(0, 0, 0);
 
-static bool warp = false;
+static bool warp = true;
 static float speed_up = false;
 static float sun_speed = 0.1;
 static bool shadowMode = false;
@@ -39,10 +39,10 @@ static float angley_change = 0.0;
 static float anglex_factor = 1.0;
 static float angley_factor = 1.0;
 //static float rad_angle_change = -3.14*angle_change/180.0;
-static float walk_x_factor = 2.0;
-static float walk_y_factor = 2.0;
-static float walk_z_factor = 2.0;
-static vector<vector<int>> heightMap;
+static float walk_x_factor = 1.0;
+static float walk_y_factor = 1.0;
+static float walk_z_factor = 1.0;
+static vector<vector<int>> heightMap(41, vector<int>(41,INT_MIN));
 
 
 static int selected_point = -1;
@@ -68,11 +68,11 @@ static float rotated_normal2[360/degs][num_points][3];
 static bool TURN_LIGHTS_ON = false;
 
 static bool DEBUGGER = false;
-static bool DEBUG_LOAD_OBJS = false;
-static bool DEBUG_DRAW_LIGHTS = true;
+static bool DEBUG_LOAD_OBJS = true;
+static bool DEBUG_DRAW_LIGHTS = false;
 
 static Shape shape;
-static double spin_angle = 0.000;
+static double spin_angle = 0;
 static int shape_key = 8;
 
 static bool red = false;
@@ -127,6 +127,9 @@ static float rightleg_dir = 2;
 clock_t Start = clock();
 static int noculltimer = 0;
 static int culltimer = 0;
+
+static int num_particles = 1000;
+static vector<Particle> particle (num_particles, Particle());
 
 //----------------------------------------------------------------------------
 // Callback method called when system is idle.
@@ -311,16 +314,15 @@ void Shape::updateCameraMatrix(float dx, float dy, float dz) {
 //----------------------------------------------------------------------------
 // Callback method called when window readraw is necessary or
 // when glutPostRedisplay() was called.
-void Window::displayCallback(void)
-{
-	//cout << "hi\n";
+void Window::displayCallback(void) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear color and depth buffers
-  //glClear(GL_COLOR_BUFFER_BIT);
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 	glMatrixMode(GL_MODELVIEW);
+	
 	/*
 	if (speed_up == true) {
 		
@@ -346,9 +348,6 @@ void Window::displayCallback(void)
 	Material bunny = Material(GL_FRONT_AND_BACK);
 	Material sandal = Material(GL_FRONT_AND_BACK);
 
-	//drawSkyBox();
-	
-	//shape.viewFrustumCulling();
 	switch (shape_key) {
 		case 1:
 			if (TURN_LIGHTS_ON) {
@@ -389,9 +388,9 @@ void Window::displayCallback(void)
 			drawShape(sandal_nVerts, sandal_vertices, sandal_normals);
 			break;
 		case 8: // house scene1
+			/*
 			// uncomment below for rotating lights + shadows
 			if (moved == true) {
-
 				shape.initializeShadows();
 				moved = false;
 				//shape.makeShadows();
@@ -400,12 +399,14 @@ void Window::displayCallback(void)
 				shape.makeShadows();
 			}
 			else {
-				glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 				shape.drawHouse();
 			}
+			*/
+			//shape.drawHouse();
+			//shape.updateParticles();
+			//shape.drawParticles();
+			//drawShape(city_nVerts, city_vertices, city_normals);
+			shape.drawHouse();
 			break;
 		case 9: // house scene2
 			shape.drawHouse();
@@ -491,11 +492,8 @@ void Window::displayCallback(void)
 		shape.updateLookAtVector();
 		anglex_change = 0.0;
 		angley_change = 0.0;
-		
 	}
-	//if (speed_up == true) {
-	shape.drawLookAtPoint();
-	//}
+
 	spin_leftarm+=0.00*leftarm_dir;
 	spin_rightarm+=0.00*rightarm_dir;
 	if (spin_leftarm > 3.14*3/4 || spin_leftarm < 3.14/4) leftarm_dir=-1*leftarm_dir;
@@ -514,9 +512,11 @@ void Window::displayCallback(void)
 		glVertex3f(0,Window::height,0);
 	glEnd();
 
+	drawSkyBox();
+
   glFlush();  
   glutSwapBuffers();
-glutPostRedisplay();
+	//glutPostRedisplay();
 }
 
 void Window::drawDirectionalLight() {
@@ -589,7 +589,7 @@ void Shape::initializeShadows() {
 	glPushMatrix();
 	
 	glLoadIdentity();
-	gluPerspective(90.0f, (float)Window::width/Window::height, 0.1f, 1000.0f);
+	gluPerspective(90, (float)Window::width/Window::height, 0.1, 1000);
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	cameraProjectionMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -613,7 +613,7 @@ void Shape::initializeShadows() {
 	cameraViewMatrix.transpose();
 	
 	glLoadIdentity();
-	gluPerspective(90.0f, 1.0f, 2.0f, 80.0f);
+	gluPerspective(90.0, 1.0, 2.0, 80.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	lightProjectionMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -1345,23 +1345,26 @@ Matrix4& Shape::getCameraMatrix() {
 	return shape.camera;
 }
 
-int main(int argc, char *argv[])
-{
-
-	
-
+int main(int argc, char *argv[]) {
   float specular[]  = {1.0, 1.0, 1.0, 1.0};
   float shininess[] = {100.0};
 
   glutInit(&argc, argv);      	      	      // initialize GLUT
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);   // open an OpenGL context with double buffering, RGB colors, and depth buffering
+	if (fullscreen) {
+		Window::width = 1366;
+		Window::height = 768;
+	}
+	else {
+		Window::width = 512;
+		Window::height = 512;
+	}
   glutInitWindowSize(Window::width, Window::height);      // set initial window size
-  glutCreateWindow("OpenGL Cube for CSE167");    	      // open window and set window title
- // glGetString(GL_EXTENSIONS);
-	if(!GLEE_ARB_depth_texture || !GLEE_ARB_shadow)
-	{
+  glutCreateWindow("CityScape");    	      // open window and set window title
+	if (fullscreen) glutFullScreen();
+
+	if(!GLEE_ARB_depth_texture || !GLEE_ARB_shadow) {
 		printf("I require ARB_depth_texture and ARB_shadow extensionsn\n");
-		//return false;
 	}
 
   glDisable(GL_LIGHTING);
@@ -1450,10 +1453,10 @@ int main(int argc, char *argv[])
 		shape.loadData();
 
 	glutSetCursor(GLUT_CURSOR_NONE);
-	shape.initializeHeightMap();
 	
-	shape.initializeShadows();
-	shape.initializeHeightMap();
+	//shape.initializeShadows();
+	//shape.initializeHeightMap();
+	//shape.initializeParticles();
 
 	/*
 	cout << "camproj: \n";
@@ -1471,14 +1474,68 @@ int main(int argc, char *argv[])
   return 0;
 }
 
+void Shape::initializeParticles() {
+	srand(1); // set seed for randomness
+
+	for (int i=0; i<num_particles; i++) {
+		particle[i].pos = Vector3(0,0,0);
+		particle[i].vel = Vector3(0,0,0);
+		//particle[i].color = Vector4(1,1,1,1);
+		//particle[i].rotate = 0;
+		particle[i].age = rand()%100+1;
+		particle[i].lifetime = rand()%100+1;
+	}
+}
+
+void Shape::updateParticles() {
+
+	for (int i=0; i<num_particles; i++) {
+		if (particle[i].age > particle[i].lifetime) {
+			particle[i].pos = Vector3(0,0,0);
+			particle[i].vel = Vector3(0,0,0);
+			particle[i].age = 0;
+		}
+		else {
+			float x = particle[i].pos.getX();
+			float y = particle[i].pos.getY();
+			float z = particle[i].pos.getZ();
+		
+			float vx = particle[i].vel.getX();
+			float vy = particle[i].vel.getY();
+			float vz = particle[i].vel.getZ();
+
+			x += vx;
+			y += vy;
+			z += vz;
+
+			vx = 0.025*(rand()%3-1);
+			vy = 0.01*(rand()%2);
+			vz = 0.025*(rand()%3-1);
+
+			particle[i].pos = Vector3(x,y,z);
+			particle[i].vel = Vector3(vx,vy,vz);
+			particle[i].age += 0.1;
+		}
+	}
+}
+
+void Shape::drawParticles() {
+	glBegin(GL_POINTS);
+
+		for (int i=0; i<num_particles; i++) {
+			glColor3f(1-particle[i].age/particle[i].lifetime,rand()%2*(1-particle[i].age/particle[i].lifetime),0);
+			glVertex3f(particle[i].pos.getX(), particle[i].pos.getY(), particle[i].pos.getZ());
+		}
+
+	glEnd();
+}
+
 void Window::drawSkyBox() {
 		glPushMatrix();
-		
 		/*
 		// code to make skybox move with camera
 		GLfloat curr[16];
 		glGetFloatv(GL_MODELVIEW_MATRIX, curr);
-		Matrix4 follow_cam = Matrix4(
 			curr[0], curr[1], curr[2], curr[3],
 			curr[4], curr[5], curr[6], curr[7],
 			curr[8], curr[9], curr[10], curr[11],
@@ -1491,11 +1548,11 @@ void Window::drawSkyBox() {
 		*/
 		
 		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_LIGHTING);
+		//glDisable(GL_LIGHTING);
 
 		glBegin(GL_QUADS);
 			// Draw front face:
-			glColor3f(0, 0.5, 0.5);
+			glColor3f(0,1,0);
 			glNormal3f(0.0, 0.0, 5000.0);   
 			glVertex3f(-5000.0,  5000.0,  5000.0);
 			glVertex3f( 5000.0,  5000.0,  5000.0);
@@ -1531,7 +1588,7 @@ void Window::drawSkyBox() {
 			glVertex3f(-5000.0,  5000.0, -5000.0);
   
 			// Draw bottom side:
-			glColor3f(0, 0, 0);
+			glColor3f(0,0,0);
 			glNormal3f(0.0, -5000.0, 0.0);
 			glVertex3f(-5000.0, -5000.0, -5000.0);
 			glVertex3f( 5000.0, -5000.0, -5000.0);
@@ -1539,15 +1596,13 @@ void Window::drawSkyBox() {
 			glVertex3f(-5000.0, -5000.0,  5000.0);
 		glEnd();
 
-		glEnable(GL_LIGHTING);
+		//glEnable(GL_LIGHTING);
 		glEnable(GL_DEPTH_TEST);
 
 		glPopMatrix();
 }
 
 void Shape::initializeHeightMap() {
-	heightMap.resize(41, vector<int>(41, INT_MIN));
-
 	for (int i = 0; i < 84; i+=3) { // else 84 or  126
 		if (heightMap[house_vertices[i]+20][house_vertices[i+2]+20] < house_vertices[i+1]) {
 			heightMap[house_vertices[i]+20][house_vertices[i+2]+20] = house_vertices[i+1];
@@ -1627,41 +1682,25 @@ void Shape::initializeHeightMap() {
 	}
 }
 
-
-void Shape::drawLookAtPoint() {
-	//shape.transformer.print();
-	glEnable(GL_POINT_SMOOTH);
-	glPointSize(5);
-
-	//control points
-	glBegin(GL_POINTS);
-		//glVertex3f(1.0, 1.0, 9.5);
-		//glVertex3f(d.getX(), d.getY(), d.getZ());
-		//glColor3f(1, 0, 1);
-		//glVertex3f(e.getX(), e.getY(), e.getZ());
-		glColor3f(1, 1, 1);
-		//lightPos.print();
-		glVertex3f(10, 10, 10);
-	glEnd();
-	//updateCameraMatrix(0, 0, 0);
-}
-
 void Shape::updateLookAtVector() {
 	Matrix4 tmp;
-	
+
+	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp.transpose();
+	float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
+	tmp.rotateY(rad_anglex_change);
+	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
+
+
 	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
 	float rad_angley_change = 3.14*(angley_change/10)/180.0;
-
 	tmp.rotateX(rad_angley_change);
-
 	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
 
 	tmp = Matrix4(up.getX(), up.getY(), up.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
-
 	tmp.rotateWindowX(rad_angley_change);
-
 	up = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
 	
 	
@@ -1766,9 +1805,11 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	Vector3 a_vec = Vector3(tmpa.get(0, 0), tmpa.get(0, 1), tmpa.get(0, 2));
 	Vector3 d_vec = Vector3(tmpd.get(0, 0), tmpd.get(0, 1), tmpd.get(0, 2));
 	moved = false;
-	switch (key) 
-	{
-		
+	switch (key)  {
+		case 27: // Escape key
+			glutDestroyWindow(glutGetWindow());
+			exit(0);
+			break;
 		case 't':
 			speed_up = !speed_up;
 			break;
@@ -1802,45 +1843,47 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			break;
 		case 'w':
 			moved = true;
-			shape.updateCameraMatrix(tmp_vec.getX()/walk_x_factor,0,tmp_vec.getZ()/walk_z_factor);
+			shape.updateCameraMatrix(tmp_vec.getX()*walk_x_factor,0,tmp_vec.getZ()*walk_z_factor);
 			//cout << "walk forward\n";
 			break;
 		case 's':
 			moved = true;
-			shape.updateCameraMatrix(-1.0*tmp_vec.getX()/walk_x_factor,0,-1.0*tmp_vec.getZ()/walk_z_factor);
+			shape.updateCameraMatrix(-1.0*tmp_vec.getX()*walk_x_factor,0,-1.0*tmp_vec.getZ()*walk_z_factor);
 			//cout << "walk back\n";
 			break;
 		case 'a':
 			moved = true;
-			shape.updateCameraMatrix(a_vec.getX()/walk_x_factor,0,a_vec.getZ()/walk_z_factor);
+			shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
 			//cout << "strafe left\n";
 			break;
 		case 'd':
 			moved = true;
-			shape.updateCameraMatrix(d_vec.getX()/walk_x_factor,0,d_vec.getZ()/walk_z_factor);
-			//cout << "strafe right\n";
+			shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
 			break;
 		case 'r':
 			moved = true;
 			shape.updateCameraMatrix(0,1,0);
-			//cout << "fly up\n";
 			break;
 			moved = true;
 		case 'f':
 			moved = true;
 			shape.updateCameraMatrix(0,-1,0);
-			//cout << "fly down\n";
 			break;
 		case 'g':
 			moved = true;
 			godMode = !godMode;
-			int i = 1;
 			if (godMode == false) {
-				i = -1;
+				e = Vector3(0, 4, 10);
+				d = Vector3(0, 4, 9);
+				up = Vector3(0, 1, 0);
+				shape.updateCameraMatrix(0,0,0);
 			}
-			d = Vector3(0,0,0);
-			up = Vector3(0,0,-1);
-			shape.updateCameraMatrix(0,i*500, 0);
+			else {
+				e = Vector3(0,5000,0);
+				d = Vector3(0,0,0);
+				up = Vector3(0,0,-1);
+				shape.updateCameraMatrix(0,0,0);
+			}
 	}
 	/*
 	cout << "--------------------\nbefore: \n";
@@ -1945,13 +1988,12 @@ void Window::processMouseMove(int x, int y) {
 	*/
 	if (x_mouse != x) {
 		anglex_change = float(x_mouse-x)/anglex_factor;
-		//cout << "anglex change: " << anglex_change << '\n';
 	}
 	if (y_mouse != y) {
-		angley_change = float(y-y_mouse)/angley_factor;
+		angley_change = float(y_mouse-y)/angley_factor;
 		float tmp = angley;
 		angley+=angley_change;
-		//cout << "HIHI: " << angley << " != " << tmp << '\n';
+		
 		if (angley > 90.0) {
 			angley = 90.0;
 			angley_change = 0.0;

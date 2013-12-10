@@ -10,11 +10,15 @@
 #include <algorithm>
 
 using namespace std;
-
+static bool falling = false;
+static float velocity = 0.5;
+static int counthihi = 0.0;
+static float curr_height = 0.0;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
 static bool moved = false;
 static bool showShadows = false;
+
 FPS_COUNTER fpsCounter;
 const int shadowMapSize=512;
 GLuint shadowMapTexture;
@@ -39,10 +43,23 @@ static float angley_change = 0.0;
 static float anglex_factor = 1.0;
 static float angley_factor = 1.0;
 //static float rad_angle_change = -3.14*angle_change/180.0;
+
 static float walk_x_factor = 1.0;
 static float walk_y_factor = 1.0;
 static float walk_z_factor = 1.0;
-static vector<vector<int>> heightMap(41, vector<int>(41,INT_MIN));
+
+/*
+-278.163 minx
+-0.00
+-463.471
+740.302 maxx
+356.627
+322.844
+*/
+
+static int x_shift = 278;
+static int z_shift = 463;
+static vector<vector<int> > heightMap(1019, vector<int>(787, 0));
 
 
 static int selected_point = -1;
@@ -128,15 +145,15 @@ clock_t Start = clock();
 static int noculltimer = 0;
 static int culltimer = 0;
 
-static int num_particles = 1000;
+static int num_particles = 5000;
 static vector<Particle> particle (num_particles, Particle());
 
 //----------------------------------------------------------------------------
 // Callback method called when system is idle.
 void Window::idleCallback(void)
 {
-  //shape.spin(spin_angle);
-  displayCallback();
+	//shape.spin(spin_angle);
+	displayCallback();
 }
 
 //----------------------------------------------------------------------------
@@ -146,7 +163,7 @@ void Window::reshapeCallback(int w, int h)
 {
 	glPushMatrix();
 	glLoadIdentity();
-    gluPerspective(90.0, Window::width/Window::height, 0.1, 1000);
+		gluPerspective(90.0, Window::width/Window::height, 0.1, 1000);
 	glGetFloatv(GL_MODELVIEW_MATRIX, shape.getModelViewMatrix().getGLMatrix());
 	glPopMatrix();
 /*	
@@ -154,38 +171,38 @@ void Window::reshapeCallback(int w, int h)
 		width = w;
 		height = h;
 	}
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glFrustum(-10.0, 10.0, -10.0, 10.0, 10, 1000.0); // set perspective projection viewing frustum
-  glTranslatef(0, 0, -20);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glFrustum(-10.0, 10.0, -10.0, 10.0, 10, 1000.0); // set perspective projection viewing frustum
+	glTranslatef(0, 0, -20);
 */
-  
+	
 }
 
 
 void Shape::loadTexture()
 {
-  GLuint texture[1];     // storage for one texture
-  int twidth, theight;   // texture width/height [pixels]
-  unsigned char* tdata;  // texture pixel data
-  // Load image file
-  tdata = loadPPM("sky1.ppm", twidth, theight);
-  if (tdata==NULL) return;
-  
-  // Create ID for texture
-  glGenTextures(1, &texture[0]);   
+	GLuint texture[1];     // storage for one texture
+	int twidth, theight;   // texture width/height [pixels]
+	unsigned char* tdata;  // texture pixel data
+	// Load image file
+	tdata = loadPPM("sky1.ppm", twidth, theight);
+	if (tdata==NULL) return;
+	
+	// Create ID for texture
+	glGenTextures(1, &texture[0]);   
 
-  // Set this texture to be the one we are working with
-  glBindTexture(GL_TEXTURE_2D, texture[0]);
-  
-  // Generate the texture
-  glTexImage2D(GL_TEXTURE_2D, 0, 3, twidth, theight, 0, GL_RGB, GL_UNSIGNED_BYTE, tdata);
-  
-  // Set bi-linear filtering for both minification and magnification
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	// Set this texture to be the one we are working with
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
+	
+	// Generate the texture
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, twidth, theight, 0, GL_RGB, GL_UNSIGNED_BYTE, tdata);
+	
+	// Set bi-linear filtering for both minification and magnification
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 }
 
 unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
@@ -221,7 +238,7 @@ unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
 	// Read maxval:
 	do
 	{
-	  retval_fgets=fgets(buf[0], BUFSIZE, fp);
+		retval_fgets=fgets(buf[0], BUFSIZE, fp);
 	} while (buf[0][0] == '#');
 
 	// Read image data:
@@ -253,21 +270,21 @@ Matrix4& Shape::getProjectionMatrix() {
 }
 
 void Shape::setProjectionMatrix() {
-  getProjectionMatrix().identity();
+	getProjectionMatrix().identity();
 
-  double fov = 3.141592654*90.0/180.0;
-  double aspect = Window::width/Window::height;
-  double nearv = 0.1;
-  double farv = 1000.0;
+	double fov = 3.141592654*90.0/180.0;
+	double aspect = Window::width/Window::height;
+	double nearv = 0.1;
+	double farv = 1000.0;
 
-  projection = 
-	  Matrix4(1.0/(aspect), 0, 0, 0,
-	          0, 1.0, 0, 0,
-			  0, 0, (nearv+farv)/(nearv-farv), 2*nearv*farv/(nearv-farv),
-			  0, 0, -1, 0);
-  projection.transpose();
-  //projection.print();
-  //getProjectionMatrix().translate(0, 0, -20);
+	projection = 
+		Matrix4(1.0/(aspect), 0, 0, 0,
+						0, 1.0, 0, 0,
+				0, 0, (nearv+farv)/(nearv-farv), 2*nearv*farv/(nearv-farv),
+				0, 0, -1, 0);
+	projection.transpose();
+	//projection.print();
+	//getProjectionMatrix().translate(0, 0, -20);
 }
 
 void Shape::setViewportMatrix() {
@@ -315,7 +332,7 @@ void Shape::updateCameraMatrix(float dx, float dy, float dz) {
 // Callback method called when window readraw is necessary or
 // when glutPostRedisplay() was called.
 void Window::displayCallback(void) {
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear color and depth buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear color and depth buffers
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
@@ -388,25 +405,21 @@ void Window::displayCallback(void) {
 			drawShape(sandal_nVerts, sandal_vertices, sandal_normals);
 			break;
 		case 8: // house scene1
-			/*
 			// uncomment below for rotating lights + shadows
-			if (moved == true) {
-				shape.initializeShadows();
+			if (moved) {
+				//shape.initializeShadows();
 				moved = false;
 				//shape.makeShadows();
 			}
-			if (showShadows == true) {
+			if (showShadows) {
 				shape.makeShadows();
 			}
 			else {
 				shape.drawHouse();
+				shape.updateParticles();
+				shape.drawParticles();
+				Window::drawShape(city_nVerts, city_vertices, city_normals);
 			}
-			*/
-			//shape.drawHouse();
-			//shape.updateParticles();
-			//shape.drawParticles();
-			//drawShape(city_nVerts, city_vertices, city_normals);
-			shape.drawHouse();
 			break;
 		case 9: // house scene2
 			shape.drawHouse();
@@ -487,7 +500,26 @@ void Window::displayCallback(void) {
 	glPopMatrix();
 	*/
 	//angle_change = 0.0;
-
+	
+	int tmpx;
+	int tmpz;
+	
+	if (e.getX() < 0) {
+		tmpx = -1*floor((-1.0*e.getX())+0.5);
+	}
+	else {
+		tmpx = floor(e.getX()+0.5);
+	}			
+	if (e.getZ() < 0) {
+		tmpz = -1*floor((-1.0*e.getZ())+0.5);
+	}
+	else {
+		tmpz = floor(e.getZ()+0.5);
+	}
+	if (falling == true) {
+		//cout << "falling\n";
+		shape.gravity(tmpx, tmpz);
+	}
 	if (anglex_change != 0.0 || angley_change != 0.0) {
 		shape.updateLookAtVector();
 		anglex_change = 0.0;
@@ -512,10 +544,8 @@ void Window::displayCallback(void) {
 		glVertex3f(0,Window::height,0);
 	glEnd();
 
-	drawSkyBox();
-
-  glFlush();  
-  glutSwapBuffers();
+	glFlush();  
+	glutSwapBuffers();
 	//glutPostRedisplay();
 }
 
@@ -559,7 +589,7 @@ void Shape::initializeShadows() {
 
 	glEnable(GL_NORMALIZE);
 	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
-  	glGenTextures(1, &shadowMapTexture);
+		glGenTextures(1, &shadowMapTexture);
 	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
 	glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
 					GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
@@ -852,7 +882,7 @@ void Window::drawCube() {
 			glVertex3f( 1.0,  1.0,  1.0);
 			glVertex3f( 1.0, -1.0,  1.0);
 			glVertex3f(-1.0, -1.0,  1.0);
-    
+		
 			// Draw left side:
 			glColor3f(0, 1, 0);
 			glNormal3f(-1.0, 0.0, 0.0);
@@ -860,7 +890,7 @@ void Window::drawCube() {
 			glVertex3f(-1.0,  1.0, -1.0);
 			glVertex3f(-1.0, -1.0, -1.0);
 			glVertex3f(-1.0, -1.0,  1.0);
-    
+		
 			// Draw right side:
 			glColor3f(0, 0, 1);
 			glNormal3f(1.0, 0.0, 0.0);
@@ -868,7 +898,7 @@ void Window::drawCube() {
 			glVertex3f( 1.0,  1.0, -1.0);
 			glVertex3f( 1.0, -1.0, -1.0);
 			glVertex3f( 1.0, -1.0,  1.0);
-  
+	
 			// Draw back face:
 			glColor3f(1, 0, 1);
 			glNormal3f(0.0, 0.0, -1.0);
@@ -876,7 +906,7 @@ void Window::drawCube() {
 			glVertex3f( 1.0,  1.0, -1.0);
 			glVertex3f( 1.0, -1.0, -1.0);
 			glVertex3f(-1.0, -1.0, -1.0);
-  
+	
 			// Draw top side:
 			glColor3f(1, 1, 0);
 			glNormal3f(0.0, 1.0, 0.0);
@@ -884,7 +914,7 @@ void Window::drawCube() {
 			glVertex3f( 1.0,  1.0,  1.0);
 			glVertex3f( 1.0,  1.0, -1.0);
 			glVertex3f(-1.0,  1.0, -1.0);
-  
+	
 			// Draw bottom side:
 			glColor3f(0, 1, 1);
 			glNormal3f(0.0, -1.0, 0.0);
@@ -899,7 +929,7 @@ void Window::drawCube() {
 
 void Shape::drawRobot() {
 	//unsigned long long Int64 = 0;
-    //clock_t Start = clock();
+		//clock_t Start = clock();
 	glMatrixMode(GL_MODELVIEW);
 	glColor3f(0,1,0);
 
@@ -1037,7 +1067,7 @@ void Shape::drawRobot() {
 void Shape::drawRobot2() {
 
 	//unsigned long long Int64 = 0;
-    //clock_t Start = clock();
+		//clock_t Start = clock();
 	glMatrixMode(GL_MODELVIEW);
 	glColor3f(0,1,0);
 
@@ -1209,7 +1239,7 @@ void Shape::nearestNeighbor(Vector4 vec1, Vector4* arr1)
 void Shape::loadData()
 {
 	/*
-  	// put code to load data model here
+		// put code to load data model here
 	ObjReader::readObj("dragon_smooth.obj", dragon_nVerts, &dragon_vertices, &dragon_normals, &dragon_texcoords, dragon_nIndices, &dragon_indices);
 	ObjReader::readObj("bunny_n.obj", bunny_nVerts, &bunny_vertices, &bunny_normals, &bunny_texcoords, bunny_nIndices, &bunny_indices);
 	ObjReader::readObj("sandal.obj", sandal_nVerts, &sandal_vertices, &sandal_normals, &sandal_texcoords, sandal_nIndices, &sandal_indices);
@@ -1256,7 +1286,7 @@ void Shape::calculateStuff(int nVerts, float *vertices) {
 	shape.translation.m[2][3] = -shape.z;
 
 	cout << "minimum values: " << min_arr[0] << ", " << min_arr[1] << ", " << min_arr[2] << "\n";
-  cout << "maximum values: " << max_arr[0] << ", " << max_arr[1] << ", " << max_arr[2] << "\n\n";
+	cout << "maximum values: " << max_arr[0] << ", " << max_arr[1] << ", " << max_arr[2] << "\n\n";
 
 	cout << "center: (" << shape.x << ", " << shape.y << ", " << shape.z << ")\n\n";
 	
@@ -1292,7 +1322,7 @@ void Window::drawShape(int nVerts, float *vertices, float *normals) {
 		curr[8], curr[9], curr[10], curr[11],
 		curr[12], curr[13], curr[14], curr[15]
 	);
-	curr_mv.scale(city_scale, city_scale, city_scale);
+	//curr_mv.scale(city_scale, city_scale, city_scale);
 	glLoadMatrixf(curr_mv.getGLMatrix());
 	
 	glBegin(GL_TRIANGLES);
@@ -1346,11 +1376,11 @@ Matrix4& Shape::getCameraMatrix() {
 }
 
 int main(int argc, char *argv[]) {
-  float specular[]  = {1.0, 1.0, 1.0, 1.0};
-  float shininess[] = {100.0};
+	float specular[]  = {1.0, 1.0, 1.0, 1.0};
+	float shininess[] = {100.0};
 
-  glutInit(&argc, argv);      	      	      // initialize GLUT
-  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);   // open an OpenGL context with double buffering, RGB colors, and depth buffering
+	glutInit(&argc, argv);      	      	      // initialize GLUT
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);   // open an OpenGL context with double buffering, RGB colors, and depth buffering
 	if (fullscreen) {
 		Window::width = 1366;
 		Window::height = 768;
@@ -1359,37 +1389,37 @@ int main(int argc, char *argv[]) {
 		Window::width = 512;
 		Window::height = 512;
 	}
-  glutInitWindowSize(Window::width, Window::height);      // set initial window size
-  glutCreateWindow("CityScape");    	      // open window and set window title
+	glutInitWindowSize(Window::width, Window::height);      // set initial window size
+	glutCreateWindow("CityScape");    	      // open window and set window title
 	if (fullscreen) glutFullScreen();
 
 	if(!GLEE_ARB_depth_texture || !GLEE_ARB_shadow) {
 		printf("I require ARB_depth_texture and ARB_shadow extensionsn\n");
 	}
 
-  glDisable(GL_LIGHTING);
-  
-  glEnable(GL_DEPTH_TEST);            	      // enable depth buffering
-  glClear(GL_DEPTH_BUFFER_BIT);       	      // clear depth buffer
-  glClearColor(0.0, 0.0, 0.0, 0.0);   	      // set clear color to black
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // set polygon drawing mode to fill front and back of each polygon
-  glEnable(GL_CULL_FACE);     // disable backface culling to render both sides of polygons
-  glDisable(GL_LIGHTING);
-  glShadeModel(GL_SMOOTH);             	      // set shading to smooth
+	glDisable(GL_LIGHTING);
+	
+	glEnable(GL_DEPTH_TEST);            	      // enable depth buffering
+	glClear(GL_DEPTH_BUFFER_BIT);       	      // clear depth buffer
+	glClearColor(0.0, 0.0, 0.0, 0.0);   	      // set clear color to black
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // set polygon drawing mode to fill front and back of each polygon
+	glEnable(GL_CULL_FACE);     // disable backface culling to render both sides of polygons
+	glDisable(GL_LIGHTING);
+	glShadeModel(GL_SMOOTH);             	      // set shading to smooth
 
-  glMatrixMode(GL_PROJECTION);
-  gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
+	glMatrixMode(GL_PROJECTION);
+	gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
 
-  // Generate material properties:
-  glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
-  glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
-  glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-  glEnable(GL_COLOR_MATERIAL);
+	// Generate material properties:
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glEnable(GL_COLOR_MATERIAL);
 
 	if (TURN_LIGHTS_ON) {
 		//Generate light source:
 		glEnable(GL_LIGHTING);
-  
+	
 		GLfloat light_ambient[] = { 0.0, 0.0, 0.0, 1.0 };
 
 		GLfloat light_diffuse_d[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -1433,31 +1463,33 @@ int main(int argc, char *argv[]) {
 	
 	
 
-  // Install callback functions:
-  glutDisplayFunc(Window::displayCallback);
-  glutReshapeFunc(Window::reshapeCallback);
-  glutIdleFunc(Window::idleCallback);
-  shape.loadTexture();
+	// Install callback functions:
+	glutDisplayFunc(Window::displayCallback);
+	glutReshapeFunc(Window::reshapeCallback);
+	glutIdleFunc(Window::idleCallback);
+	shape.loadTexture();
 
 	// to avoid cube turning white on scaling down
-  //glEnable(GL_TEXTURE_2D);   // enable texture mapping
-  
+	//glEnable(GL_TEXTURE_2D);   // enable texture mapping
+	
 	// Process keyboard input
-  glutKeyboardFunc(Window::processNormalKeys);
-  glutSpecialFunc(Window::processSpecialKeys);
+	glutKeyboardFunc(Window::processNormalKeys);
+	glutSpecialFunc(Window::processSpecialKeys);
 	//glutMouseFunc(Window::processMouseClick);
 	glutPassiveMotionFunc(Window::processMouseMove);
 	
 	// load obj files
-	if (DEBUG_LOAD_OBJS)
-		shape.loadData();
-
-	glutSetCursor(GLUT_CURSOR_NONE);
+	//if (DEBUG_LOAD_OBJS)
+	shape.loadData();
 	
-	//shape.initializeShadows();
-	//shape.initializeHeightMap();
-	//shape.initializeParticles();
+	glutSetCursor(GLUT_CURSOR_NONE);
 
+	//shape.findminsmaxs();
+	
+	shape.initializeHeightMap();
+	//shape.initializeShadows();
+	shape.initializeParticles();
+	
 	/*
 	cout << "camproj: \n";
 	cameraProjectionMatrix.print();
@@ -1471,14 +1503,14 @@ int main(int argc, char *argv[]) {
 
 	glutMainLoop();
 
-  return 0;
+	return 0;
 }
 
 void Shape::initializeParticles() {
 	srand(1); // set seed for randomness
 
 	for (int i=0; i<num_particles; i++) {
-		particle[i].pos = Vector3(0,0,0);
+		particle[i].pos = Vector3(0,1,25);
 		particle[i].vel = Vector3(0,0,0);
 		//particle[i].color = Vector4(1,1,1,1);
 		//particle[i].rotate = 0;
@@ -1491,7 +1523,7 @@ void Shape::updateParticles() {
 
 	for (int i=0; i<num_particles; i++) {
 		if (particle[i].age > particle[i].lifetime) {
-			particle[i].pos = Vector3(0,0,0);
+			particle[i].pos = Vector3(0,1,25);
 			particle[i].vel = Vector3(0,0,0);
 			particle[i].age = 0;
 		}
@@ -1508,9 +1540,9 @@ void Shape::updateParticles() {
 			y += vy;
 			z += vz;
 
-			vx = 0.025*(rand()%3-1);
-			vy = 0.01*(rand()%2);
-			vz = 0.025*(rand()%3-1);
+			vx = 0.05*(rand()%3-1);
+			vy = 0.025*(rand()%2);
+			vz = 0.05*(rand()%3-1);
 
 			particle[i].pos = Vector3(x,y,z);
 			particle[i].vel = Vector3(vx,vy,vz);
@@ -1520,10 +1552,13 @@ void Shape::updateParticles() {
 }
 
 void Shape::drawParticles() {
+	glEnable(GL_POINT_SMOOTH);
+	glPointSize(3);
+
 	glBegin(GL_POINTS);
 
 		for (int i=0; i<num_particles; i++) {
-			glColor3f(1-particle[i].age/particle[i].lifetime,rand()%2*(1-particle[i].age/particle[i].lifetime),0);
+			glColor4f(1-particle[i].age/particle[i].lifetime,rand()%2*(1-particle[i].age/particle[i].lifetime),0,1);
 			glVertex3f(particle[i].pos.getX(), particle[i].pos.getY(), particle[i].pos.getZ());
 		}
 
@@ -1558,35 +1593,35 @@ void Window::drawSkyBox() {
 			glVertex3f( 5000.0,  5000.0,  5000.0);
 			glVertex3f( 5000.0, -5000.0,  5000.0);
 			glVertex3f(-5000.0, -5000.0,  5000.0);
-    
+		
 			// Draw left side:
 			glNormal3f(-5000.0, 0.0, 0.0);
 			glVertex3f(-5000.0,  5000.0,  5000.0);
 			glVertex3f(-5000.0,  5000.0, -5000.0);
 			glVertex3f(-5000.0, -5000.0, -5000.0);
 			glVertex3f(-5000.0, -5000.0,  5000.0);
-    
+		
 			// Draw right side:
 			glNormal3f(5000.0, 0.0, 0.0);
 			glVertex3f( 5000.0,  5000.0,  5000.0);
 			glVertex3f( 5000.0,  5000.0, -5000.0);
 			glVertex3f( 5000.0, -5000.0, -5000.0);
 			glVertex3f( 5000.0, -5000.0,  5000.0);
-  
+	
 			// Draw back face:
 			glNormal3f(0.0, 0.0, -5000.0);
 			glVertex3f(-5000.0,  5000.0, -5000.0);
 			glVertex3f( 5000.0,  5000.0, -5000.0);
 			glVertex3f( 5000.0, -5000.0, -5000.0);
 			glVertex3f(-5000.0, -5000.0, -5000.0);
-  
+	
 			// Draw top side:
 			glNormal3f(0.0, 5000.0, 0.0);
 			glVertex3f(-5000.0,  5000.0,  5000.0);
 			glVertex3f( 5000.0,  5000.0,  5000.0);
 			glVertex3f( 5000.0,  5000.0, -5000.0);
 			glVertex3f(-5000.0,  5000.0, -5000.0);
-  
+	
 			// Draw bottom side:
 			glColor3f(0,0,0);
 			glNormal3f(0.0, -5000.0, 0.0);
@@ -1602,84 +1637,169 @@ void Window::drawSkyBox() {
 		glPopMatrix();
 }
 
-void Shape::initializeHeightMap() {
-	for (int i = 0; i < 84; i+=3) { // else 84 or  126
-		if (heightMap[house_vertices[i]+20][house_vertices[i+2]+20] < house_vertices[i+1]) {
-			heightMap[house_vertices[i]+20][house_vertices[i+2]+20] = house_vertices[i+1];
+void Shape::findminsmaxs() {
+	float minx = FLT_MAX;
+	float miny = FLT_MAX;
+	float minz = FLT_MAX;
+	float maxx = FLT_MIN;
+	float maxy = FLT_MIN;
+	float maxz = FLT_MIN;
+
+	for (int i = 0; i < city_nVerts*3; i+=3) {
+		if (city_vertices[i] < minx) {
+			minx = city_vertices[i];
+		}
+		if (city_vertices[i+1] < miny) {
+			miny = city_vertices[i+1];
+		}
+		if (city_vertices[i+2] < minz) {
+			minz = city_vertices[i+2];
+		}
+		if (city_vertices[i] > maxx) {
+			maxx = city_vertices[i];
+		}
+		if (city_vertices[i+1] > maxy) {
+			maxy = city_vertices[i+1];
+		}
+		if (city_vertices[i+2] > maxz) {
+			maxz = city_vertices[i+2];
 		}
 	}
-	int finder;
-	vector <int> tmp;
-	vector <int> minx;
-	vector <int> maxx;
-	vector <int> miny;
-	vector <int> maxy;
-	//vector <int> indexes; // minx, maxx, miny, maxy
-	for (int i = 0; i < 41; i++)
-	{
-	  for (int j = 0; j < 41; j++)
-	  {
-		  if (heightMap[i][j] != INT_MIN)
-		  {
-			  if(find(tmp.begin(), tmp.end(), heightMap[i][j]) == tmp.end()) {
-				  tmp.push_back(heightMap[i][j]);
-				  minx.push_back(i);
-				  maxx.push_back(i);
-				  miny.push_back(j);
-				  maxy.push_back(j);
-			  }
-			  else {
-				finder = find(tmp.begin(), tmp.end(), heightMap[i][j]) - tmp.begin();
-				if (i < minx[finder]){
-					minx[finder] = i;
-				}
-				if (i > maxx[finder]){
-					maxx[finder] = i;
-				}
-				if (j < miny[finder]){
-					miny[finder] = j;
-				}
-				if (j > maxy[finder]){
-					maxy[finder] = j;
-				}
-			  }
-			 //cout << "i: " << i << ", j: " << j << ", val: " << heightMap[i][j] << "\n";
-		  }
-	  }
+	cout << minx << '\n';
+	cout << miny << '\n';
+	cout << minz << '\n';
+	cout << maxx << '\n';
+	cout << maxy << '\n';
+	cout << maxz << '\n';
+}
 
-	  //cout << '\n';
-  }
-	vector<int> tmp2 = tmp;
-
-	sort(tmp.begin(), tmp.end()); // tmp = sorted, tmp2 = unsorted 
-	//cout << tmp.size() << '\n';
-	//cout << "HI\n";
-	for (int i = 0; i < tmp.size(); i++)
-	{
-	  finder = find(tmp2.begin(), tmp2.end(), tmp[i]) - tmp2.begin(); 
-	  for (int j = minx[finder]; j < maxx[finder]+1; j++)
-	  {
-		  for (int k = miny[finder]; k < maxy[finder]+1; k++)
-		  {
-			  heightMap[j][k] = tmp[i];
-		  }
-	  }
+void Shape::gravity(int x, int y) {
+	int needed_height = heightMap[x+x_shift][y+z_shift];
+	if (curr_height - velocity <= needed_height) {
+		updateCameraMatrix(0, needed_height-curr_height, 0);
+		falling = false;
+		curr_height = needed_height;
+		cout << "fell\n";
 	}
-	for (int i = 0; i < 41; i++)
+	else {
+		cout << "currently falling\n";
+		updateCameraMatrix(0, -1.0*velocity, 0);
+		curr_height-=velocity;
+	}
+}
+
+void Shape::initializeHeightMap() {
+	//cout << city_nVerts << '\n';
+	//cout << city_nIndices << '\n';
+	float x_interval;
+	float y_interval;
+	float z_interval;
+	float changex;
+	float changey;
+	float changez;
+	float change;
+	float tmpx;
+	float tmpy;
+	float tmpz;
+	int counter;
+	int tmptmpx;
+	int tmptmpy;
+	int tmptmpz;
+	float minx;
+	float maxx;
+	float minz;
+	float maxz;
+	float miny;
+	float maxy;
+	float tmpminx;
+	float tmpminy;
+	float tmpminz;
+	float tmpmaxx;
+	float tmpmaxy;
+	float tmpmaxz;
+
+	//int arr[1][2] = {{0, 1}};
+	int arr[4][2] = {{0, 1}, {0, 3}, {1, 3}, {2, 3}};  
+	//int arr[5][2] = {{0, 1}, {0, 2}, {0, 3}, {1, 3}, {2, 3}};   
+	for (int i = 0; i < city_nVerts*3; i++)
 	{
-	  for (int j = 0; j < 41; j++)
-	  {
-		  if (heightMap[i][j] == INT_MIN)
-		  {
-			  cout << "ERROR\n";
-		  }
-		  heightMap[i][j]+=4; // 4 feet tall
-		  //else if (heightMap[i][j] == -4)
-		  //{
+		city_vertices[i]/=10.0;
+	}
+
+	
+	for (int i = 0; i < city_nVerts*3; i+=12) { // else 84 or  126
+		tmpminx = min(city_vertices[i], city_vertices[i+3], city_vertices[i+6], city_vertices[i+9]); 
+		tmpmaxx = max(city_vertices[i], city_vertices[i+3], city_vertices[i+6], city_vertices[i+9]); 
+		tmpminy = min(city_vertices[i+1], city_vertices[i+4], city_vertices[i+7], city_vertices[i+10]); 
+		tmpmaxy = max(city_vertices[i+1], city_vertices[i+4], city_vertices[i+7], city_vertices[i+10]); 
+		tmpminz = min(city_vertices[i+2], city_vertices[i+5], city_vertices[i+8], city_vertices[i+11]); 
+		tmpmaxz = max(city_vertices[i+2], city_vertices[i+5], city_vertices[i+8], city_vertices[i+11]);
+
+		if (tmpminx < 0) {
+			minx = -1*floor((-1.0*tmpminx)+0.5);
+		}
+		else {
+			minx = floor(tmpminx+0.5);
+		}
+		if (tmpminz < 0) {
+			minz = -1*floor((-1.0*tmpminz)+0.5);
+		}
+		else {
+			minz = floor(tmpminz+0.5);
+		}
+		if (tmpmaxx < 0) {
+			maxx = -1*floor((-1.0*tmpmaxx)+0.5);
+		}
+		else {
+			maxx = floor(tmpmaxx+0.5);
+		}
+		if (tmpmaxz < 0) {
+			maxz = -1*floor((-1.0*tmpmaxz)+0.5);
+		}
+		else {
+			maxz = floor(tmpmaxz+0.5);
+		}
+		if (tmpminy < 0) {
+			miny = -1*floor((-1.0*tmpminy)+0.5);
+		}
+		else {
+			miny = floor(tmpminy+0.5);
+		}
+		if (tmpmaxy < 0) {
+			maxy = -1*floor((-1.0*tmpmaxy)+0.5);
+		}
+		else {
+			maxy = floor(tmpmaxy+0.5);
+		}
+		for (int j = minx; j < maxx; j++)
+		{
+			for (int k = minz; k < maxz; k++)
+			{
+				if (maxy > heightMap[j+x_shift][k+z_shift]) {
+					heightMap[j+x_shift][k+z_shift] = maxy;
+				}
+			}
+		}
+	}
+
+	
+	for (int i = 0; i < 1019; i++)
+	{
+		for (int j = 0; j < 787; j++)
+		{
+			//if (heightMap[i][j] != 0)
+			//{
+				heightMap[i][j]+=4;
+			 //j cout << "i: " << i << ", j: " << j << ", is: " << heightMap[i][j] << '\n';
+		 // }
+		 // heightMap[i][j]+=4; // 4 feet tall
+			//else if (heightMap[i][j] == -4)
+			//{
 			//  heightMap[i][j] = 0; // 4 feet tall
-		  //}
-	  }
+			//}
+		}
 	}
+	
 }
 
 void Shape::updateLookAtVector() {
@@ -1690,7 +1810,6 @@ void Shape::updateLookAtVector() {
 	float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
 	tmp.rotateY(rad_anglex_change);
 	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
-
 
 	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
@@ -1714,7 +1833,6 @@ void Shape::updateLookAtVector() {
 	cout << "e: ";
 	e.print();
 	*/
-
 }
 
 double Shape::getAngle() {
@@ -1784,7 +1902,7 @@ void Shape::drawHouse() {
 
 void Shape::spin(double deg)
 {
-  if (shape.angle > 360.0 || shape.angle < -360.0) shape.angle = 0.0;
+	if (shape.angle > 360.0 || shape.angle < -360.0) shape.angle = 0.0;
 	shape.getModelViewMatrix().rotateWindowY(deg);
 }
 
@@ -1842,35 +1960,45 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			showShadows = !showShadows;
 			break;
 		case 'w':
-			moved = true;
-			shape.updateCameraMatrix(tmp_vec.getX()*walk_x_factor,0,tmp_vec.getZ()*walk_z_factor);
-			//cout << "walk forward\n";
+			if (!falling) {
+				moved = true;
+				shape.updateCameraMatrix(tmp_vec.getX()*walk_x_factor,0,tmp_vec.getZ()*walk_z_factor);
+			}
 			break;
 		case 's':
-			moved = true;
-			shape.updateCameraMatrix(-1.0*tmp_vec.getX()*walk_x_factor,0,-1.0*tmp_vec.getZ()*walk_z_factor);
-			//cout << "walk back\n";
+			if (!falling) {
+				moved = true;
+				shape.updateCameraMatrix(-1.0*tmp_vec.getX()*walk_x_factor,0,-1.0*tmp_vec.getZ()*walk_z_factor);
+			}
 			break;
 		case 'a':
-			moved = true;
-			shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
-			//cout << "strafe left\n";
+			if (!falling) {
+				moved = true;
+				shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
+			}
 			break;
 		case 'd':
-			moved = true;
-			shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
+			if (!falling) {
+				moved = true;
+				shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
+			}
 			break;
 		case 'r':
-			moved = true;
-			shape.updateCameraMatrix(0,1,0);
+			if (!falling) {
+				moved = true;
+				shape.updateCameraMatrix(0,1,0);
+			}
 			break;
-			moved = true;
 		case 'f':
-			moved = true;
-			shape.updateCameraMatrix(0,-1,0);
+			if (!falling) {
+				moved = true;
+				shape.updateCameraMatrix(0,-1,0);
+			}
 			break;
 		case 'g':
+
 			moved = true;
+
 			godMode = !godMode;
 			if (godMode == false) {
 				e = Vector3(0, 4, 10);
@@ -1892,15 +2020,60 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	cout << "e: ";
 	e.print();
 	*/
-	int tmpx = floor(e.getX() + 0.5);
-	int tmpz = floor(e.getZ() + 0.5);
+	int tmpx;
+	int tmpz;
+	
+	if (e.getX() < 0) {
+		tmpx = -1*floor((-1.0*e.getX())+0.5);
+	}
+	else {
+		tmpx = floor(e.getX()+0.5);
+	}			
+	if (e.getZ() < 0) {
+		tmpz = -1*floor((-1.0*e.getZ())+0.5);
+	}
+	else {
+		tmpz = floor(e.getZ()+0.5);
+	}
+
 	//cout << "tmpx: "<< tmpx << ", tmpz: " << tmpz << '\n';
 	//cout << e.getX() << e.getZ() << '\n';
-	//if (heightMap[e.getX()][e.getZ()] != 0) {
-	//shape.updateCameraMatrix(0, heightMap[tmpx+20][tmpz+20] - e.getY(), 0);
+	/*
+	if (heightMap[tmpx+x_shift][tmpz+z_shift] != curr_height) {
+		if (heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height) {
+			cout << "jumped up a building "<< counthihi << "\n";
+		}
+		if (heightMap[tmpx+x_shift][tmpz+z_shift] < curr_height) {
+			cout << "jumped down a building "<< counthihi << "\n";
+		}
+	shape.updateCameraMatrix(0, heightMap[tmpx+x_shift][tmpz+z_shift] - e.getY(), 0);
+	curr_height = heightMap[tmpx+x_shift][tmpz+z_shift];
+	//cout << "jumped up a building "<< counthihi << "\n";
+	counthihi++;
+		//e.getY() = heightMap[tmpx][tmpz];
+	}
+	*/
+	if (falling == false) {
+		if (heightMap[e.getX()+x_shift][e.getZ()+z_shift] != curr_height) {
+			if (heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height) {
+
+				cout << "teleporting up a building "<< counthihi << "\n";
+				shape.updateCameraMatrix(0, heightMap[tmpx+x_shift][tmpz+z_shift] - e.getY(), 0);
+				curr_height = heightMap[tmpx+x_shift][tmpz+z_shift];
+			}
+			else if (heightMap[tmpx+x_shift][tmpz+z_shift] < curr_height) {
+				falling = true;
+				cout << "jumped down a building "<< counthihi << "\n";
+				shape.gravity(tmpx, tmpz);
+			}
+	}
+	
+
 	//cout << "jumped up a building\n";
 		//e.getY() = heightMap[e.getX()][e.getZ()];
-	//}
+	}
+
+
 	/*
 	cout << "after: \n";
 	cout << "d: ";

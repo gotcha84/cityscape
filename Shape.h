@@ -101,6 +101,9 @@ class Shape {
 		void initializeParticles();
 		void updateParticles();
 		void drawParticles();
+
+		void findminsmaxs();
+		void gravity(int, int);
 };
 
 class Window { // output window related routines
@@ -121,6 +124,7 @@ class Window { // output window related routines
 	static void drawPointLight();
 	static void drawSpotLight();
 	static void drawSkyBox();
+	
 };
 
 // house

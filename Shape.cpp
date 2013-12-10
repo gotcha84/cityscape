@@ -13,6 +13,7 @@ using namespace std;
 
 //TIMER timer;
 //float angle=timer.GetTime()/10;
+static bool moved = false;
 static bool showShadows = true;
 FPS_COUNTER fpsCounter;
 const int shadowMapSize=512;
@@ -20,7 +21,7 @@ GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
 Vector3 lightPos = Vector3(0, 0, 0);
 
-static bool warp = true;
+static bool warp = false;
 static float speed_up = false;
 static float sun_speed = 0.1;
 static bool shadowMode = false;
@@ -64,7 +65,7 @@ static float rotated_inter2[360/degs][num_points][3];
 static float rotated_normal[360/degs][num_points][3];
 static float rotated_normal2[360/degs][num_points][3];
 
-static bool TURN_LIGHTS_ON = true;
+static bool TURN_LIGHTS_ON = false;
 
 static bool DEBUGGER = false;
 static bool DEBUG_LOAD_OBJS = false;
@@ -312,8 +313,9 @@ void Shape::updateCameraMatrix(float dx, float dy, float dz) {
 // when glutPostRedisplay() was called.
 void Window::displayCallback(void)
 {
+	//cout << "hi\n";
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear color and depth buffers
-  
+  //glClear(GL_COLOR_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
 	glMatrixMode(GL_PROJECTION);
@@ -336,7 +338,7 @@ void Window::displayCallback(void)
 		//shape.getProjectionMatrix().print();
 	}
 	*/
-	shape.getModelViewMatrix().print();
+	//shape.getModelViewMatrix().print();
 	//shape.getProjectionMatrix().print();
 
 	Material cube = Material(GL_FRONT_AND_BACK);
@@ -388,8 +390,22 @@ void Window::displayCallback(void)
 			break;
 		case 8: // house scene1
 			// uncomment below for rotating lights + shadows
-			//shape.initializeShadows();
-			shape.makeShadows();
+			if (moved == true) {
+
+				shape.initializeShadows();
+				moved = false;
+				//shape.makeShadows();
+			}
+			if (showShadows == true) {
+				shape.makeShadows();
+			}
+			else {
+				glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
+				shape.drawHouse();
+			}
 			break;
 		case 9: // house scene2
 			shape.drawHouse();
@@ -500,6 +516,7 @@ void Window::displayCallback(void)
 
   glFlush();  
   glutSwapBuffers();
+glutPostRedisplay();
 }
 
 void Window::drawDirectionalLight() {
@@ -583,7 +600,10 @@ void Shape::initializeShadows() {
 	glLoadIdentity();
 	gluLookAt(e.getX(), e.getY(), e.getZ(),
 				d.getX(), d.getY(), d.getZ(),
-				up.getX(), up.getY(), up.getZ());
+				//0, 0, 0,
+				0, 1, 0);
+				
+				//up.getX(), up.getY(), up.getZ());
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 		cameraViewMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -607,7 +627,10 @@ void Shape::initializeShadows() {
 	gluLookAt(sqrt(100.0), sqrt(100.0), sqrt(100.0),
 	//gluLookAt(	lightPos.getX(), lightPos.getY(), lightPos.getZ(),
 				d.getX(), d.getY(), d.getZ(),
-				up.getX(), up.getY(), up.getZ());
+				//0, 0, 0,
+				0, 1, 0);
+				
+				//up.getX(), up.getY(), up.getZ());
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	lightViewMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -666,9 +689,6 @@ void Shape::makeShadows() {
 	glCullFace(GL_BACK);
 	glShadeModel(GL_SMOOTH);
 	glColorMask(1, 1, 1, 1);
-	
-
-	
 
 	//2nd pass - Draw from camera's point of view
 	glClear(GL_DEPTH_BUFFER_BIT);
@@ -681,7 +701,7 @@ void Shape::makeShadows() {
 
 	glViewport(0, 0, Window::width, Window::height);
 	//lightPos.print();
-	GLfloat tmp[3] = {GLfloat(lightPos.getX()), GLfloat(lightPos.getY()), GLfloat(lightPos.getZ())};
+	GLfloat tmp[3] = {GLfloat(10), GLfloat(10), GLfloat(0)};
 	GLfloat almostwhite[3] = {GLfloat(0.2), GLfloat(0.2), GLfloat(0.2)};
 	GLfloat black[3] = {GLfloat(0), GLfloat(0), GLfloat(0)};
 	GLfloat white[3] = {GLfloat(1), GLfloat(1), GLfloat(1)};
@@ -697,6 +717,9 @@ void Shape::makeShadows() {
 	glEnable(GL_LIGHTING);
 
 	shape.drawHouse();
+	//DrawScene(angle);
+	
+
 
 	//3rd pass
 	//Draw with bright light
@@ -785,14 +808,14 @@ void Shape::makeShadows() {
 	
 	//Set matrices for ortho
 	
-	//glMatrixMode(GL_PROJECTION);
-	//glPushMatrix();
-	//glLoadIdentity();
-	//gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
 
-	//glMatrixMode(GL_MODELVIEW);
-	//glPushMatrix();
-	//glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
 	
 	//Print text
 	//glRasterPos2f(-1.0f, 0.9f);
@@ -806,12 +829,16 @@ void Shape::makeShadows() {
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
 	
-	glFinish();
-	glutSwapBuffers();
-	glutPostRedisplay();
+	//glFinish();
+	//glutSwapBuffers();
+	//glutPostRedisplay();
 
 	}
 	else {
+			glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 		shape.drawHouse();
 	}
 }
@@ -1318,7 +1345,11 @@ Matrix4& Shape::getCameraMatrix() {
 	return shape.camera;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
+
+	
+
   float specular[]  = {1.0, 1.0, 1.0, 1.0};
   float shininess[] = {100.0};
 
@@ -1395,6 +1426,10 @@ int main(int argc, char *argv[]) {
 			shape.spot.disable();
 	}
 
+	
+	
+	
+
   // Install callback functions:
   glutDisplayFunc(Window::displayCallback);
   glutReshapeFunc(Window::reshapeCallback);
@@ -1414,9 +1449,9 @@ int main(int argc, char *argv[]) {
 	if (DEBUG_LOAD_OBJS)
 		shape.loadData();
 
-	//glutSetCursor(GLUT_CURSOR_NONE);
-	
+	glutSetCursor(GLUT_CURSOR_NONE);
 	shape.initializeHeightMap();
+	
 	shape.initializeShadows();
 	shape.initializeHeightMap();
 
@@ -1606,21 +1641,13 @@ void Shape::drawLookAtPoint() {
 		//glVertex3f(e.getX(), e.getY(), e.getZ());
 		glColor3f(1, 1, 1);
 		//lightPos.print();
-		glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
+		glVertex3f(10, 10, 10);
 	glEnd();
 	//updateCameraMatrix(0, 0, 0);
 }
 
 void Shape::updateLookAtVector() {
 	Matrix4 tmp;
-	
-	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	tmp.transpose();
-	//tmp.print();
-	float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
-	tmp.rotateY(rad_anglex_change);
-	
-	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
 	
 	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
@@ -1637,11 +1664,10 @@ void Shape::updateLookAtVector() {
 
 	up = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
 	
+	
 	updateCameraMatrix(0, 0, 0);
-
 	//cout << "angley_change: " << angley_change << '\n';
 	//cout << "angley: " << angley << '\n';
-	
 	/*
 	cout << "after: \n";
 	cout << "d: ";
@@ -1649,6 +1675,7 @@ void Shape::updateLookAtVector() {
 	cout << "e: ";
 	e.print();
 	*/
+
 }
 
 double Shape::getAngle() {
@@ -1738,7 +1765,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 
 	Vector3 a_vec = Vector3(tmpa.get(0, 0), tmpa.get(0, 1), tmpa.get(0, 2));
 	Vector3 d_vec = Vector3(tmpd.get(0, 0), tmpd.get(0, 1), tmpd.get(0, 2));
-
+	moved = false;
 	switch (key) 
 	{
 		
@@ -1774,30 +1801,38 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			showShadows = !showShadows;
 			break;
 		case 'w':
+			moved = true;
 			shape.updateCameraMatrix(tmp_vec.getX()/walk_x_factor,0,tmp_vec.getZ()/walk_z_factor);
 			//cout << "walk forward\n";
 			break;
 		case 's':
+			moved = true;
 			shape.updateCameraMatrix(-1.0*tmp_vec.getX()/walk_x_factor,0,-1.0*tmp_vec.getZ()/walk_z_factor);
 			//cout << "walk back\n";
 			break;
 		case 'a':
+			moved = true;
 			shape.updateCameraMatrix(a_vec.getX()/walk_x_factor,0,a_vec.getZ()/walk_z_factor);
 			//cout << "strafe left\n";
 			break;
 		case 'd':
+			moved = true;
 			shape.updateCameraMatrix(d_vec.getX()/walk_x_factor,0,d_vec.getZ()/walk_z_factor);
 			//cout << "strafe right\n";
 			break;
 		case 'r':
+			moved = true;
 			shape.updateCameraMatrix(0,1,0);
 			//cout << "fly up\n";
 			break;
+			moved = true;
 		case 'f':
+			moved = true;
 			shape.updateCameraMatrix(0,-1,0);
 			//cout << "fly down\n";
 			break;
 		case 'g':
+			moved = true;
 			godMode = !godMode;
 			int i = 1;
 			if (godMode == false) {
@@ -1830,6 +1865,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	cout << "e: ";
 	e.print();
 	*/
+	//glutPostRedisplay();
 	
 }
 
@@ -1909,12 +1945,13 @@ void Window::processMouseMove(int x, int y) {
 	*/
 	if (x_mouse != x) {
 		anglex_change = float(x_mouse-x)/anglex_factor;
+		//cout << "anglex change: " << anglex_change << '\n';
 	}
 	if (y_mouse != y) {
-		angley_change = float(y_mouse-y)/angley_factor;
+		angley_change = float(y-y_mouse)/angley_factor;
 		float tmp = angley;
 		angley+=angley_change;
-
+		//cout << "HIHI: " << angley << " != " << tmp << '\n';
 		if (angley > 90.0) {
 			angley = 90.0;
 			angley_change = 0.0;
@@ -1923,6 +1960,7 @@ void Window::processMouseMove(int x, int y) {
 			angley = -90.0;
 			angley_change = 0.0;
 		}
+		//cout << "anglex change: " << angley_change << '\n';
 	}
 	
 	if (warp == true) {

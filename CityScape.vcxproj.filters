@@ -69,6 +69,15 @@
     <ClCompile Include="GLee.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ARB_multitexture_extension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EXT_texture_env_combine_extension.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FPS_COUNTER.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Light.h">
@@ -125,5 +134,18 @@
     <ClInclude Include="GLee.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ARB_multitexture_extension.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EXT_texture_env_combine_extension.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FPS_COUNTER.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="GL_ARB_depth_texture.txt" />
+    <Text Include="GL_ARB_shadow.txt" />
   </ItemGroup>
 </Project>

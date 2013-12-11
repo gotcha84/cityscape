@@ -10,9 +10,10 @@
 #include <algorithm>
 
 using namespace std;
+
 static bool printedfirst = false;
 static char displayString[32] = "COLLISION DETECTED";
-static bool heightMapEnabled = false;
+static bool heightMapEnabled = true;
 static bool falling = false;
 static float velocity = 1.0;
 static bool collisiondetected = false;
@@ -28,7 +29,6 @@ const int shadowMapSize=512;
 GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
 Vector3 lightPos = Vector3(0.0, sqrt(100.0), 0.0);
-//Vector3 lightPos = Vector3(0.0, sqrt(100000.0), 0.0);
 
 static bool warp = true;
 static float speed_up = true;
@@ -38,8 +38,8 @@ static bool godMode = false;
 static float city_scale = 0.1;
 
 // for camera matrix
-static Vector3 e = Vector3(0, 4, 10); // origin
-static Vector3 d = Vector3(0, 4, 9); // look at
+static Vector3 e = Vector3(0, 4, 0); // origin
+static Vector3 d = Vector3(0, 4, -1); // look at
 static Vector3 up = Vector3(0, 1, 0); // up
 static float anglex = 0.0;
 static float angley = 0.0;
@@ -131,7 +131,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
-static bool fullscreen = true;
+static bool fullscreen = false;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -153,10 +153,12 @@ static int culltimer = 0;
 static int num_particles = 5000;
 static vector<Particle> particle (num_particles, Particle());
 
+static int num_wparticles = 500;
+static vector<Particle> wparticle (num_wparticles, Particle());
+
 //----------------------------------------------------------------------------
 // Callback method called when system is idle.
-void Window::idleCallback(void)
-{
+void Window::idleCallback(void) {
 	//shape.spin(spin_angle);
 	displayCallback();
 }
@@ -164,8 +166,7 @@ void Window::idleCallback(void)
 //----------------------------------------------------------------------------
 // Callback method called when window is resized.
 
-void Window::reshapeCallback(int w, int h)
-{
+void Window::reshapeCallback(int w, int h) {
 	glPushMatrix();
 	glLoadIdentity();
 		gluPerspective(90.0, Window::width/Window::height, 0.1, 1000);
@@ -412,21 +413,21 @@ void Window::displayCallback(void) {
 		case 8: // house scene1
 			// uncomment below for rotating lights + shadows
 			if (moved) {
-
 				moved = false;
-				//shape.makeShadows();
 			}
 			if (showShadows) {
-				shape.initializeShadows();
-				//cout << "HIHI\n";
+				//shape.initializeShadows();
 				shape.makeShadows();
 			}
 			else {
 				shape.drawHouse();
-				shape.updateParticles();
-
 				Window::drawShape(city_nVerts, city_vertices, city_normals);
-				shape.drawParticles();
+				
+				//shape.updateParticles();
+				//shape.drawParticles();
+
+				shape.updateWeatherParticles();
+				shape.drawWeatherParticles();
 			}
 			break;
 		case 9: // house scene2
@@ -1541,6 +1542,7 @@ int main(int argc, char *argv[]) {
 	shape.initializeHeightMap();
 	//shape.initializeShadows();
 	shape.initializeParticles();
+	shape.initializeWeatherParticles();
 	
 	/*
 	cout << "camproj: \n";
@@ -1619,14 +1621,108 @@ void Shape::updateParticles() {
 
 void Shape::drawParticles() {
 	glEnable(GL_POINT_SMOOTH);
-	glPointSize(3);
+	glPointSize(10);
 
 	glBegin(GL_POINTS);
 		for (int i=0; i<num_particles; i++) {
 			glColor3f(1-particle[i].age/particle[i].lifetime,rand()%2*(1-particle[i].age/particle[i].lifetime),0);
+			//glColor3f(1,1,0);
 			glVertex3f(particle[i].pos.getX(), particle[i].pos.getY(), particle[i].pos.getZ());
 		}
 	glEnd();
+}
+
+void Shape::initializeWeatherParticles() {
+	srand(1); // set seed for randomness
+
+	for (int i=0; i<num_wparticles; i++) {
+		wparticle[i].pos = Vector3(0.1*(rand()%201-100),10,0.1*(rand()%201-100));
+		wparticle[i].vel = Vector3(0,0,0);
+		wparticle[i].age = rand()%100+1;
+		wparticle[i].lifetime = rand()%100+1;
+	}
+}
+
+void Shape::updateWeatherParticles() {
+
+	for (int i=0; i<num_wparticles; i++) {
+		if (wparticle[i].age > wparticle[i].lifetime) {
+			wparticle[i].pos = Vector3(0.1*(rand()%201-100),10,0.1*(rand()%201-100));
+			wparticle[i].vel = Vector3(0,0,0);
+			wparticle[i].age = 0;
+		}
+		else {
+			float x = wparticle[i].pos.getX();
+			float y = wparticle[i].pos.getY();
+			float z = wparticle[i].pos.getZ();
+		
+			float vx = wparticle[i].vel.getX();
+			float vy = wparticle[i].vel.getY();
+			float vz = wparticle[i].vel.getZ();
+
+			x += vx;
+			y += vy;
+			z += vz;
+
+			/*
+			vx = 0.05*(rand()%3-1);
+			vy = 0.025*(rand()%2);
+			vz = 0.05*(rand()%3-1);
+			*/
+
+			float pos_vx = 0.01*(rand()%50+1);
+			float neg_vx = -0.01*(rand()%50+1);
+			bool pick_pos_vx = rand()%2;
+			
+			float pos_vz = 0.01*(rand()%50+1);
+			float neg_vz = -0.01*(rand()%50+1);
+			bool pick_pos_vz = rand()%2;
+
+			vx = 0.1*((pick_pos_vx) ? pos_vx : neg_vx);
+			vy = -0.01*(0.01*(rand()%50+1));
+			vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
+
+			wparticle[i].pos = Vector3(x,y,z);
+			wparticle[i].vel = Vector3(vx,vy,vz);
+			wparticle[i].age += 0.01;
+		}
+	}
+}
+
+void Shape::drawWeatherParticles() {
+	glPushMatrix();
+	
+	glEnable(GL_POINT_SMOOTH);
+	glPointSize(5);
+	
+	GLfloat curr[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, curr);
+	Matrix4 mv = Matrix4(
+		curr[0], curr[1], curr[2], curr[3],
+		curr[4], curr[5], curr[6], curr[7],
+		curr[8], curr[9], curr[10], curr[11],
+		curr[12], curr[13], curr[14], curr[15]
+	);
+	
+	Matrix4 cam =  shape.getCameraMatrix();
+	Matrix4 follow_cam = mv.multiply(cam);
+	
+	mv.set(0,3,follow_cam.get(0,3));
+	mv.set(1,3,follow_cam.get(1,3));
+	mv.set(2,3,follow_cam.get(2,3));
+	
+	glLoadMatrixf(mv.getGLMatrix());
+	
+	
+	glBegin(GL_POINTS);
+		for (int i=0; i<num_wparticles; i++) {
+			glColor3f(1,1,1);
+			glVertex3f(wparticle[i].pos.getX(), wparticle[i].pos.getY(), wparticle[i].pos.getZ());
+		}
+	glEnd();
+
+
+	glPopMatrix();
 }
 
 void Window::drawSkyBox() {
@@ -1900,8 +1996,8 @@ void Shape::updateLookAtVector() {
 	tmp.rotateWindowX(rad_angley_change);
 	up = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
 	
-	
 	updateCameraMatrix(0, 0, 0);
+
 	//cout << "angley_change: " << angley_change << '\n';
 	//cout << "angley: " << angley << '\n';
 	/*

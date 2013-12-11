@@ -101,6 +101,9 @@ class Shape {
 		void initializeParticles();
 		void updateParticles();
 		void drawParticles();
+		void initializeWeatherParticles();
+		void updateWeatherParticles();
+		void drawWeatherParticles();
 
 		void findminsmaxs();
 		void gravity(int, int);

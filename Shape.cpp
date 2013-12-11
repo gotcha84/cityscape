@@ -10,9 +10,13 @@
 #include <algorithm>
 
 using namespace std;
+static bool printedfirst = false;
+static char displayString[32] = "COLLISION DETECTED";
+static bool heightMapEnabled = false;
 static bool falling = false;
-static float velocity = 0.5;
-static int counthihi = 0.0;
+static float velocity = 1.0;
+static bool collisiondetected = false;
+static int counter = 0;
 static float curr_height = 0.0;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
@@ -23,11 +27,12 @@ FPS_COUNTER fpsCounter;
 const int shadowMapSize=512;
 GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
-Vector3 lightPos = Vector3(0, 0, 0);
+Vector3 lightPos = Vector3(0.0, sqrt(100.0), 0.0);
+//Vector3 lightPos = Vector3(0.0, sqrt(100000.0), 0.0);
 
 static bool warp = true;
-static float speed_up = false;
-static float sun_speed = 0.1;
+static float speed_up = true;
+static float sun_speed = 0.0001;
 static bool shadowMode = false;
 static bool godMode = false;
 static float city_scale = 0.1;
@@ -109,7 +114,7 @@ GLfloat low_shininess[] = { 5.0 };
 GLfloat high_shininess[] = { 128 };
 GLfloat mat_emission[] = {0.3, 0.2, 0.2, 0.0};
 
-GLfloat d_position[] = {sqrt(100.0), sqrt(100.0), 0, 0};
+GLfloat d_position[] = {sqrt(10000.0), sqrt(10000.0), 0, 0};
 GLfloat p_position[] = {0, -5, 0, 1};
 GLfloat s_position[] = {-10, 0, 0, 1};
 GLfloat s_direction[] = {1, 0, 0};
@@ -120,7 +125,7 @@ static bool shader_toggle = false;
 static bool toggle1 = false;
 static bool toggle2 = false;
 static bool toggle3 = false;
-static bool toggle_freeze = false;
+static bool toggle_freeze = true;
 static bool toggle_frus = false;
 static bool toggle_tex = false;
 
@@ -407,17 +412,19 @@ void Window::displayCallback(void) {
 		case 8: // house scene1
 			// uncomment below for rotating lights + shadows
 			if (moved) {
-				//shape.initializeShadows();
+				
 				moved = false;
 				//shape.makeShadows();
 			}
 			if (showShadows) {
+				shape.initializeShadows();
+				//cout << "HIHI\n";
 				shape.makeShadows();
 			}
 			else {
 				shape.drawHouse();
-				shape.updateParticles();
-				shape.drawParticles();
+				//shape.updateParticles();
+				//shape.drawParticles();
 				Window::drawShape(city_nVerts, city_vertices, city_normals);
 			}
 			break;
@@ -425,36 +432,16 @@ void Window::displayCallback(void) {
 			shape.drawHouse();
 			break;
 	}
+	Matrix4 tmp;
 
-	if (toggle1) {
-			glPushMatrix();
-				glRotatef(theta, 0, 0, 1);
-				if (!toggle_freeze)
-					
-					shape.directional.setPosition(d_position);
-					
-					GLfloat temp_mv[16];
-					glGetFloatv(GL_MODELVIEW_MATRIX, temp_mv);
-					sun_mv = Matrix4(
-						temp_mv[0], temp_mv[1], temp_mv[2], temp_mv[3],
-						temp_mv[4], temp_mv[5], temp_mv[6], temp_mv[7],
-						temp_mv[8], temp_mv[9], temp_mv[10], temp_mv[11],
-						temp_mv[12], temp_mv[13], temp_mv[14], temp_mv[15]
-					);
-					sun_mv.transpose();
-					Vector4 d_position2 = Vector4(d_position[0], d_position[1], d_position[2], 1);
-					Vector4 lightPos2 = sun_mv.multiply(d_position2);
+	tmp = Matrix4(lightPos.getX(), lightPos.getY(), lightPos.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp.transpose();
+	//float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
+	tmp.rotateZ(sun_speed);
+	lightPos = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
+		
 
-					lightPos = Vector3(lightPos2[0], lightPos2[1], lightPos[2]);
-					lightPos.scale(5);
-					//lightPos.print();
-
-				if (DEBUG_DRAW_LIGHTS && warp == true) {
-					drawDirectionalLight();
-				}
-	
-			glPopMatrix();
-	}
+	/*
 
 	if (toggle2) {
 		glPushMatrix();
@@ -475,17 +462,20 @@ void Window::displayCallback(void) {
 			if (DEBUG_DRAW_LIGHTS) drawSpotLight();
 		glPopMatrix();
 	}
+	*/
 	bool print_lightpos = false;
-	if (!toggle_freeze) {
-		if (speed_up == true) {
-			toggle1 = true;
-			theta+=4.5*sun_speed;
-		}
-		else {
-			theta+=0;
-			toggle1 = false;
-		}
+	if (toggle_freeze) {
+		sun_speed = 0.0;
 	}
+	else if (speed_up == true) {
+			
+		sun_speed = 0.001;
+	}
+	else {
+		sun_speed = 0.0001;
+
+	}
+	
 	if (theta > 360 || theta < 0) theta = 0;
 
 	/*
@@ -516,10 +506,12 @@ void Window::displayCallback(void) {
 	else {
 		tmpz = floor(e.getZ()+0.5);
 	}
+	
 	if (falling == true) {
 		//cout << "falling\n";
 		shape.gravity(tmpx, tmpz);
 	}
+	
 	if (anglex_change != 0.0 || angley_change != 0.0) {
 		shape.updateLookAtVector();
 		anglex_change = 0.0;
@@ -544,6 +536,49 @@ void Window::displayCallback(void) {
 		glVertex3f(0,Window::height,0);
 	glEnd();
 
+	glColor3f(1, 1, 0);
+	glEnable(GL_POINT_SMOOTH);
+	glPointSize(50);
+
+	glBegin(GL_POINTS);
+
+		glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
+
+	glEnd();
+
+	if (collisiondetected) {
+
+		
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glLoadIdentity();
+			gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadIdentity();
+
+			//Print text
+			glRasterPos2f(-1.0f, 0.9f);
+			for(unsigned int i=0; i<strlen(displayString); ++i)
+				glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString[i]);
+		
+			//reset matrices
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+			counter++;
+			if (counter == 100) {
+				//cout << "printed!\n";
+				collisiondetected = false;
+				counter = 0;
+			}
+		
+	}
+
+
+	
 	glFlush();  
 	glutSwapBuffers();
 	//glutPostRedisplay();
@@ -575,6 +610,7 @@ void Window::drawSpotLight() {
 }
 
 void Shape::initializeShadows() {
+	//cout << "HIASDHISA\n";
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glShadeModel(GL_SMOOTH);
@@ -586,10 +622,10 @@ void Shape::initializeShadows() {
 	glClearDepth(1.0f);
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_DEPTH_TEST);
-
+	glEnable(GL_CULL_FACE);
 	glEnable(GL_NORMALIZE);
 	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
-		glGenTextures(1, &shadowMapTexture);
+	glGenTextures(1, &shadowMapTexture);
 	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
 	glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
 					GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
@@ -643,7 +679,7 @@ void Shape::initializeShadows() {
 	cameraViewMatrix.transpose();
 	
 	glLoadIdentity();
-	gluPerspective(90.0, 1.0, 2.0, 80.0);
+	gluPerspective(90.0, 2.0, 0.2, 100.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	lightProjectionMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -654,8 +690,8 @@ void Shape::initializeShadows() {
 	glLoadIdentity();
 
 
-	gluLookAt(sqrt(100.0), sqrt(100.0), sqrt(100.0),
-	//gluLookAt(	lightPos.getX(), lightPos.getY(), lightPos.getZ(),
+	//gluLookAt(sqrt(0.0), sqrt(10000.0), sqrt(0.0),
+	gluLookAt(	lightPos.getX(), lightPos.getY(), lightPos.getZ(),
 				d.getX(), d.getY(), d.getZ(),
 				//0, 0, 0,
 				0, 1, 0);
@@ -668,7 +704,7 @@ void Shape::initializeShadows() {
 		p[8],p[9],p[10],p[11],
 		p[12],p[13],p[14],p[15]);
 	lightViewMatrix.transpose();
-	
+		
 	glPopMatrix();
 	//timer.Reset();
 
@@ -677,12 +713,22 @@ void Shape::initializeShadows() {
 	cameraViewMatrix.transpose();
 	lightProjectionMatrix.transpose();
 	lightViewMatrix.transpose();
-	
+
+
+		gluLookAt(e.getX(), e.getY(), e.getZ(),
+				d.getX(), d.getY(), d.getZ(),
+				//0, 0, 0,
+				0, 1, 0);
+
+
+	//glDisable(GL_DEPTH_TEST);
+	//glutSwapBuffers();
 }
 
 void Shape::makeShadows() {
-	if (showShadows == true) {
 
+	
+	
 		//float angle=timer.GetTime()/10;	
 		//cout << "angle: " << angle << '\n';
 		//cout << "hihi\n";
@@ -709,7 +755,11 @@ void Shape::makeShadows() {
 	
 	//Draw the scene
 	shape.drawHouse();
-	//DrawScene(angle);
+	//shape.updateParticles();
+	//shape.drawParticles();
+	Window::drawShape(city_nVerts, city_vertices, city_normals);
+	
+	
 		
 	//Read the depth buffer into the shadow map texture
 	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
@@ -745,12 +795,13 @@ void Shape::makeShadows() {
 	//glLightfv(GL_LIGHT1, GL_SPECULAR, black);
 	glEnable(GL_LIGHT1);
 	glEnable(GL_LIGHTING);
-
 	shape.drawHouse();
-	//DrawScene(angle);
+	//shape.updateParticles();
+	//shape.drawParticles();
+	Window::drawShape(city_nVerts, city_vertices, city_normals);
 	
 
-
+	
 	//3rd pass
 	//Draw with bright light
 	//glLightfv(GL_LIGHT1, GL_DIFFUSE, white);
@@ -813,7 +864,10 @@ void Shape::makeShadows() {
 	glEnable(GL_ALPHA_TEST);
 
 	shape.drawHouse();
-	//DrawScene(angle);
+
+	//shape.updateParticles();
+	//shape.drawParticles();
+	Window::drawShape(city_nVerts, city_vertices, city_normals);
 
 	//Disable textures and texgen
 	glDisable(GL_TEXTURE_2D);
@@ -858,19 +912,18 @@ void Shape::makeShadows() {
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 	
 	//glFinish();
 	//glutSwapBuffers();
 	//glutPostRedisplay();
+	
+	
 
-	}
-	else {
-			glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
-		shape.drawHouse();
-	}
 }
 
 void Window::drawCube() {
@@ -1675,16 +1728,30 @@ void Shape::findminsmaxs() {
 
 void Shape::gravity(int x, int y) {
 	int needed_height = heightMap[x+x_shift][y+z_shift];
-	if (curr_height - velocity <= needed_height) {
-		updateCameraMatrix(0, needed_height-curr_height, 0);
+	//uncomment below if want to fall to ground automatically
+	/*
+	if (heightMapEnabled == false) {
+		updateCameraMatrix(0, -1*e.getY(), 0);
+		curr_height = 0;
 		falling = false;
-		curr_height = needed_height;
-		cout << "fell\n";
 	}
-	else {
-		cout << "currently falling\n";
-		updateCameraMatrix(0, -1.0*velocity, 0);
-		curr_height-=velocity;
+	*/
+	cout << "curr height: " << curr_height << '\n';
+	cout << "needed height: " << needed_height << '\n';
+	if (heightMapEnabled == true) {
+	//else {
+		if (curr_height - velocity <= needed_height) {
+			updateCameraMatrix(0, needed_height-curr_height, 0);
+			falling = false;
+			curr_height = needed_height;
+			//cout << "fell\n";
+		}
+		else {
+			//cout << "currently falling\n";
+			updateCameraMatrix(0, -1.0*velocity, 0);
+			curr_height-=velocity;
+		}
+	//}
 	}
 }
 
@@ -1701,7 +1768,7 @@ void Shape::initializeHeightMap() {
 	float tmpx;
 	float tmpy;
 	float tmpz;
-	int counter;
+	//int counter;
 	int tmptmpx;
 	int tmptmpy;
 	int tmptmpz;
@@ -1922,11 +1989,45 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 
 	Vector3 a_vec = Vector3(tmpa.get(0, 0), tmpa.get(0, 1), tmpa.get(0, 2));
 	Vector3 d_vec = Vector3(tmpd.get(0, 0), tmpd.get(0, 1), tmpd.get(0, 2));
+	int tmpx;
+	int tmpz;
+
+
+	/*
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	*/
+	//Print text
+
+		
+	//reset matrices
+	
+
+
 	moved = false;
 	switch (key)  {
 		case 27: // Escape key
 			glutDestroyWindow(glutGetWindow());
 			exit(0);
+			break;
+		case 'e':
+			walk_x_factor*=(3.0/2.0);
+			walk_y_factor*=(3.0/2.0);
+			walk_z_factor*=(3.0/2.0);
+			break;
+		case 'q':
+			walk_x_factor*=(2.0/3.0);
+			walk_y_factor*=(2.0/3.0);
+			walk_z_factor*=(2.0/3.0);
+			break;
+		case 'y':
+			toggle_freeze = !toggle_freeze;
 			break;
 		case 't':
 			speed_up = !speed_up;
@@ -1953,6 +2054,16 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			else
 				Shader shader = Shader("diffuse_shading.vert", "diffuse_shading.frag", false);
 			break;
+		case 'h':
+
+			heightMapEnabled = !heightMapEnabled;
+			if (heightMapEnabled) {
+			cout << "heightmapenabled\n";
+			}
+			else {
+				cout << "heightmapdisabled\n";
+			}
+			break;
 		case 'c':
 			warp = !warp;
 			break;
@@ -1960,39 +2071,157 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			showShadows = !showShadows;
 			break;
 		case 'w':
-			if (!falling) {
+			if (!falling || !heightMapEnabled) {
 				moved = true;
-				shape.updateCameraMatrix(tmp_vec.getX()*walk_x_factor,0,tmp_vec.getZ()*walk_z_factor);
+				//shape.updateCameraMatrix(tmp_vec.getX()*walk_x_factor,0,tmp_vec.getZ()*walk_z_factor);
+				if (!heightMapEnabled) {
+						if (e.getX()+(tmp_vec.getX()*walk_x_factor) < 0) {
+							tmpx = -1*floor((-1.0*(e.getX()+(tmp_vec.getX()*walk_x_factor)))+0.5);
+						}
+						else {
+							tmpx = floor(e.getX()+(tmp_vec.getX()*walk_x_factor)+0.5);
+						}			
+						if (e.getZ()+(tmp_vec.getZ()*walk_z_factor) < 0) {
+							tmpz = -1*floor((-1.0*(e.getZ()+(tmp_vec.getZ()*walk_z_factor)))+0.5);
+						}
+						else {
+							tmpz = floor(e.getZ()+(tmp_vec.getZ()*walk_z_factor)+0.5);
+						}
+						if (!(heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height)) {
+
+							shape.updateCameraMatrix(tmp_vec.getX()*walk_x_factor,0,tmp_vec.getZ()*walk_z_factor);
+						}
+						else if (printedfirst) {
+
+							collisiondetected = true;
+						}
+						else {
+							printedfirst = true;
+						}
+			
+				}
+				else {
+					
+					shape.updateCameraMatrix(tmp_vec.getX()*walk_x_factor,0,tmp_vec.getZ()*walk_z_factor);
+				}
 			}
 			break;
 		case 's':
-			if (!falling) {
+			if (!falling || !heightMapEnabled) {
 				moved = true;
-				shape.updateCameraMatrix(-1.0*tmp_vec.getX()*walk_x_factor,0,-1.0*tmp_vec.getZ()*walk_z_factor);
+				if (!heightMapEnabled) {
+					if (e.getX()-(tmp_vec.getX()*walk_x_factor) < 0) {
+						tmpx = -1*floor((-1.0*(e.getX()-(tmp_vec.getX()*walk_x_factor)))+0.5);
+					}
+					else {
+						tmpx = floor(e.getX()-(tmp_vec.getX()*walk_x_factor)+0.5);
+					}			
+					if (e.getZ()-(tmp_vec.getZ()*walk_z_factor) < 0) {
+						tmpz = -1*floor((-1.0*(e.getZ()-(tmp_vec.getZ()*walk_z_factor)))+0.5);
+					}
+					else {
+						tmpz = floor(e.getZ()-(tmp_vec.getZ()*walk_z_factor)+0.5);
+					}
+					if (!(heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height)) {
+
+						shape.updateCameraMatrix(-1.0*tmp_vec.getX()*walk_x_factor,0,-1.0*tmp_vec.getZ()*walk_z_factor);
+					}
+					else if (printedfirst) {
+						collisiondetected = true;
+					}
+					else {
+							printedfirst = true;
+						}
+			
+				}
+				else {
+					
+					shape.updateCameraMatrix(-1.0*tmp_vec.getX()*walk_x_factor,0,-1.0*tmp_vec.getZ()*walk_z_factor);
+				}
 			}
 			break;
 		case 'a':
-			if (!falling) {
+			if (!falling || !heightMapEnabled) {
 				moved = true;
-				shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
+				//shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
+				if (!heightMapEnabled) {
+						if (e.getX()+(a_vec.getX()*walk_x_factor) < 0) {
+							tmpx = -1*floor((-1.0*(e.getX()+(a_vec.getX()*walk_x_factor)))+0.5);
+						}
+						else {
+							tmpx = floor(e.getX()+(a_vec.getX()*walk_x_factor)+0.5);
+						}			
+						if (e.getZ()+(a_vec.getZ()*walk_z_factor) < 0) {
+							tmpz = -1*floor((-1.0*(e.getZ()+(a_vec.getZ()*walk_z_factor)))+0.5);
+						}
+						else {
+							tmpz = floor(e.getZ()+(a_vec.getZ()*walk_z_factor)+0.5);
+						}
+						if (!(heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height)) {
+
+							shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
+						}
+						else if (printedfirst) {
+							collisiondetected = true;
+						}
+						else {
+							printedfirst = true;
+						}
+			
+				}
+				else {
+					
+					shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
+				}
 			}
 			break;
 		case 'd':
-			if (!falling) {
+			if (!falling || !heightMapEnabled) {
 				moved = true;
-				shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
+				//shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
+				if (!heightMapEnabled) {
+						if (e.getX()+(d_vec.getX()*walk_x_factor) < 0) {
+							tmpx = -1*floor((-1.0*(e.getX()+(d_vec.getX()*walk_x_factor)))+0.5);
+						}
+						else {
+							tmpx = floor(e.getX()+(d_vec.getX()*walk_x_factor)+0.5);
+						}			
+						if (e.getZ()+(d_vec.getZ()*walk_z_factor) < 0) {
+							tmpz = -1*floor((-1.0*(e.getZ()+(d_vec.getZ()*walk_z_factor)))+0.5);
+						}
+						else {
+							tmpz = floor(e.getZ()+(d_vec.getZ()*walk_z_factor)+0.5);
+						}
+						if (!(heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height)) {
+
+							shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
+						}
+						else if (printedfirst) {
+							collisiondetected = true;
+						}
+						else {
+							printedfirst = true;
+						}
+			
+				}
+				else {
+					
+					shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
+				}
 			}
 			break;
 		case 'r':
-			if (!falling) {
+			if (!falling || !heightMapEnabled) {
 				moved = true;
-				shape.updateCameraMatrix(0,1,0);
+				shape.updateCameraMatrix(0,walk_y_factor,0);
+				curr_height+=walk_y_factor;
 			}
 			break;
 		case 'f':
-			if (!falling) {
+			if (!falling || !heightMapEnabled) {
 				moved = true;
-				shape.updateCameraMatrix(0,-1,0);
+				shape.updateCameraMatrix(0,-1.0*walk_y_factor,0);
+				curr_height-=walk_y_factor;
 			}
 			break;
 		case 'g':
@@ -2001,16 +2230,26 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 
 			godMode = !godMode;
 			if (godMode == false) {
+				heightMapEnabled = true;
 				e = Vector3(0, 4, 10);
 				d = Vector3(0, 4, 9);
 				up = Vector3(0, 1, 0);
 				shape.updateCameraMatrix(0,0,0);
+				curr_height = 4;
+				walk_x_factor = 1.0;
+				walk_y_factor = 1.0;
+				walk_z_factor = 1.0;
 			}
 			else {
-				e = Vector3(0,5000,0);
+				heightMapEnabled = false;
+				e = Vector3(0,100,0);
 				d = Vector3(0,0,0);
 				up = Vector3(0,0,-1);
 				shape.updateCameraMatrix(0,0,0);
+				curr_height = 100;
+				walk_x_factor = 100.0;
+				walk_y_factor = 100.0;
+				walk_z_factor = 100.0;
 			}
 	}
 	/*
@@ -2020,9 +2259,13 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	cout << "e: ";
 	e.print();
 	*/
-	int tmpx;
-	int tmpz;
-	
+
+	/*
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+	*/
 	if (e.getX() < 0) {
 		tmpx = -1*floor((-1.0*e.getX())+0.5);
 	}
@@ -2041,33 +2284,48 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	/*
 	if (heightMap[tmpx+x_shift][tmpz+z_shift] != curr_height) {
 		if (heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height) {
-			cout << "jumped up a building "<< counthihi << "\n";
+			cout << "jumped up a building "<<  "\n";
 		}
 		if (heightMap[tmpx+x_shift][tmpz+z_shift] < curr_height) {
-			cout << "jumped down a building "<< counthihi << "\n";
+			cout << "jumped down a building "<<  "\n";
 		}
 	shape.updateCameraMatrix(0, heightMap[tmpx+x_shift][tmpz+z_shift] - e.getY(), 0);
 	curr_height = heightMap[tmpx+x_shift][tmpz+z_shift];
-	//cout << "jumped up a building "<< counthihi << "\n";
-	counthihi++;
+	//cout << "jumped up a building "<<  "\n";
+	
 		//e.getY() = heightMap[tmpx][tmpz];
 	}
 	*/
-	if (falling == false) {
-		if (heightMap[e.getX()+x_shift][e.getZ()+z_shift] != curr_height) {
-			if (heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height) {
 
-				cout << "teleporting up a building "<< counthihi << "\n";
-				shape.updateCameraMatrix(0, heightMap[tmpx+x_shift][tmpz+z_shift] - e.getY(), 0);
-				curr_height = heightMap[tmpx+x_shift][tmpz+z_shift];
-			}
-			else if (heightMap[tmpx+x_shift][tmpz+z_shift] < curr_height) {
-				falling = true;
-				cout << "jumped down a building "<< counthihi << "\n";
-				shape.gravity(tmpx, tmpz);
-			}
-	}
+
+		if (falling == false) {
+				if (heightMap[tmpx+x_shift][tmpz+z_shift] != curr_height) {
+					if (heightMap[tmpx+x_shift][tmpz+z_shift] > curr_height) {
+
+						//cout << "teleporting up a building "<< "\n";
+						shape.updateCameraMatrix(0, heightMap[tmpx+x_shift][tmpz+z_shift] - e.getY(), 0);
+						curr_height = heightMap[tmpx+x_shift][tmpz+z_shift];
+					}
+			
+			
+				else if (heightMap[tmpx+x_shift][tmpz+z_shift] < curr_height) {
+					/*
+					if (heightMapEnabled == false) {
+						shape.updateCameraMatrix(0, -1*e.getY()+4, 0);
+						curr_height = 0;
+						falling = false;
+					}
+					*/
+					//else {
+						falling = true;
+						//cout << "jumped down a building "<< "\n";
+						shape.gravity(tmpx, tmpz);
+					//}
+				}
+		}
 	
+
+
 
 	//cout << "jumped up a building\n";
 		//e.getY() = heightMap[e.getX()][e.getZ()];
@@ -2081,6 +2339,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 	cout << "e: ";
 	e.print();
 	*/
+	
 	//glutPostRedisplay();
 	
 }

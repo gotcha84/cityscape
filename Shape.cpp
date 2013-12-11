@@ -24,7 +24,8 @@ static float curr_height = 0.0;
 static bool moved = false;
 static bool showShadows = true;
 FPS_COUNTER fpsCounter;
-const int shadowMapSize=512;
+const int shadowMapSizex=1366;
+const int shadowMapSizey=768;
 GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
 Vector3 lightPos = Vector3(0.0, sqrt(1000000.0), 0.0);
@@ -130,7 +131,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
-static bool fullscreen = false;
+static bool fullscreen = true;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -352,6 +353,7 @@ void Window::displayCallback(void) {
 	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 	glMatrixMode(GL_MODELVIEW);
 	
+
 	/*
 	if (speed_up == true) {
 		
@@ -543,16 +545,7 @@ void Window::displayCallback(void) {
 		glVertex3f(0,-Window::height,0);
 		glVertex3f(0,Window::height,0);
 	glEnd();
-
-	glColor3f(1, 1, 0);
-	glEnable(GL_POINT_SMOOTH);
-	glPointSize(50);
-
-	glBegin(GL_POINTS);
-
-		glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
-
-	glEnd();
+	
 
 	if (collisiondetected) {
 
@@ -585,7 +578,16 @@ void Window::displayCallback(void) {
 		
 	}
 
+		glColor3f(1, 1, 0);
+	glEnable(GL_POINT_SMOOTH);
+	glPointSize(50);
+	glDisable(GL_DEPTH_TEST);
+	glBegin(GL_POINTS);
 
+		glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
+
+	glEnd();
+	glEnable(GL_DEPTH_TEST);
 	
 	glFlush();  
 	glutSwapBuffers();
@@ -635,7 +637,7 @@ void Shape::initializeShadows() {
 	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
 	glGenTextures(1, &shadowMapTexture);
 	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
-	glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
+	glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSizex, shadowMapSizey, 0,
 					GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
 	//glTexSubImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
 	//				GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
@@ -689,7 +691,7 @@ void Shape::initializeShadows() {
 	
 	
 	glLoadIdentity();
-	gluPerspective(90.0, 1.0, 0.2, 100.0);
+	gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 1500.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	lightProjectionMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
@@ -749,7 +751,7 @@ void Shape::makeShadows() {
 	glLoadMatrixf(lightViewMatrix.getGLMatrix());
 
 	//Use viewport the same size as the shadow map
-	glViewport(0, 0, shadowMapSize, shadowMapSize);
+	glViewport(0, 0, shadowMapSizex, shadowMapSizey);
 
 	//Draw back faces into the shadow map
 	glCullFace(GL_FRONT);
@@ -768,7 +770,7 @@ void Shape::makeShadows() {
 		
 	//Read the depth buffer into the shadow map texture
 	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
-	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, shadowMapSize, shadowMapSize);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, shadowMapSizex, shadowMapSizey);
 
 	//restore states
 	glCullFace(GL_BACK);
@@ -822,7 +824,7 @@ void Shape::makeShadows() {
 								0.0f, 0.0f, 0.5f, 0.0f,
 								0.5f, 0.5f, 0.5f, 1.0f);	//bias from [-1, 1] to [0, 1]
 	//biasMatrix.transpose(); // MAYBE NOT TRANSPOSE
-	biasMatrix.scale(1.0025, 1.0025, 1.0025);
+	biasMatrix.scale(1.05, 1.05, 1.05);
 	Matrix4 textureMatrix = biasMatrix.multiply(lightProjectionMatrix.multiply(lightViewMatrix));
 	textureMatrix.transpose(); // MAYBE NOT TRANSPOSE
 	GLfloat* tmp2;

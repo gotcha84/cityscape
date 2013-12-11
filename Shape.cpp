@@ -22,17 +22,16 @@ static float curr_height = 0.0;
 //float angle=timer.GetTime()/10;
 static bool moved = false;
 static bool showShadows = false;
-
 FPS_COUNTER fpsCounter;
 const int shadowMapSize=512;
 GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
-Vector3 lightPos = Vector3(0.0, sqrt(100.0), 0.0);
+Vector3 lightPos = Vector3(0.0, sqrt(100000.0), 0.0);
 //Vector3 lightPos = Vector3(0.0, sqrt(100000.0), 0.0);
 
 static bool warp = true;
 static float speed_up = true;
-static float sun_speed = 0.0001;
+static float sun_speed = 0.001;
 static bool shadowMode = false;
 static bool godMode = false;
 static float city_scale = 0.1;
@@ -168,7 +167,7 @@ void Window::reshapeCallback(int w, int h)
 {
 	glPushMatrix();
 	glLoadIdentity();
-		gluPerspective(90.0, Window::width/Window::height, 0.1, 1000);
+		gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 1000);
 	glGetFloatv(GL_MODELVIEW_MATRIX, shape.getModelViewMatrix().getGLMatrix());
 	glPopMatrix();
 /*	
@@ -278,10 +277,17 @@ void Shape::setProjectionMatrix() {
 	getProjectionMatrix().identity();
 
 	double fov = 3.141592654*90.0/180.0;
-	double aspect = Window::width/Window::height;
+	
+	double aspect;
+	if (fullscreen) {
+		aspect = 1366.0/768.0;
+	}
+	else {
+		aspect = 512.0/512.0;
+	}
 	double nearv = 0.1;
 	double farv = 1000.0;
-
+	
 	projection = 
 		Matrix4(1.0/(aspect), 0, 0, 0,
 						0, 1.0, 0, 0,
@@ -470,10 +476,10 @@ void Window::displayCallback(void) {
 	}
 	else if (speed_up == true) {
 			
-		sun_speed = 0.001;
+		sun_speed = 0.01;
 	}
 	else {
-		sun_speed = 0.0001;
+		sun_speed = 0.001;
 
 	}
 	
@@ -630,6 +636,8 @@ void Shape::initializeShadows() {
 	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
 	glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
 					GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+	//glTexSubImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
+	//				GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
@@ -656,14 +664,14 @@ void Shape::initializeShadows() {
 	glPushMatrix();
 	
 	glLoadIdentity();
-	gluPerspective(90, (float)Window::width/Window::height, 0.1, 1000);
+	gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	cameraProjectionMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
 		p[4],p[5],p[6],p[7],
 		p[8],p[9],p[10],p[11],
 		p[12],p[13],p[14],p[15]);
-	cameraProjectionMatrix.transpose();
+	
 	glLoadIdentity();
 	gluLookAt(e.getX(), e.getY(), e.getZ(),
 				d.getX(), d.getY(), d.getZ(),
@@ -677,17 +685,17 @@ void Shape::initializeShadows() {
 		p[4],p[5],p[6],p[7],
 		p[8],p[9],p[10],p[11],
 		p[12],p[13],p[14],p[15]);
-	cameraViewMatrix.transpose();
+	
 	
 	glLoadIdentity();
-	gluPerspective(90.0, 2.0, 0.2, 100.0);
+	gluPerspective(90.0, 1.0, 0.2, 100.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, p);
 	lightProjectionMatrix = Matrix4(
 		p[0],p[1],p[2],p[3],
 		p[4],p[5],p[6],p[7],
 		p[8],p[9],p[10],p[11],
 		p[12],p[13],p[14],p[15]);
-	lightProjectionMatrix.transpose();
+	
 	glLoadIdentity();
 
 
@@ -704,16 +712,13 @@ void Shape::initializeShadows() {
 		p[4],p[5],p[6],p[7],
 		p[8],p[9],p[10],p[11],
 		p[12],p[13],p[14],p[15]);
-	lightViewMatrix.transpose();
+	
 		
 	glPopMatrix();
 	//timer.Reset();
 
 	
-	cameraProjectionMatrix.transpose();
-	cameraViewMatrix.transpose();
-	lightProjectionMatrix.transpose();
-	lightViewMatrix.transpose();
+
 
 	
 	gluLookAt(
@@ -778,7 +783,7 @@ void Shape::makeShadows() {
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(cameraViewMatrix.getGLMatrix());
 
-	glViewport(0, 0, Window::width, Window::height);
+	glViewport(0, 0, float(Window::width), float(Window::height));
 	//lightPos.print();
 	GLfloat tmp[3] = {GLfloat(10), GLfloat(10), GLfloat(0)};
 	GLfloat almostwhite[3] = {GLfloat(0.2), GLfloat(0.2), GLfloat(0.2)};
@@ -879,7 +884,7 @@ void Shape::makeShadows() {
 	//Restore other states
 	glDisable(GL_LIGHTING);
 	glDisable(GL_ALPHA_TEST);
-
+	glDeleteTextures(1, &shadowMapTexture);
 
 
 	//Update frames per second counter
@@ -1363,6 +1368,9 @@ void Shape::calculateStuff(int nVerts, float *vertices) {
 }
 
 void Window::drawShape(int nVerts, float *vertices, float *normals) {
+	float red = 0.0;
+	float green = 0.0;
+	float blue = 0.0;
 	glPushMatrix();
 	
 	// scale city down
@@ -1378,21 +1386,24 @@ void Window::drawShape(int nVerts, float *vertices, float *normals) {
 	glLoadMatrixf(curr_mv.getGLMatrix());
 	
 	glBegin(GL_TRIANGLES);
+	int k = 0;
+	int l = 0;
 	for (int i=0; i<nVerts/3; i++) {
-		if (red == true) {
-			glColor3f(1,0,0);
-			red = false;
+		if (k % 282 == 0) {
+			red = city_colors[l][0];
+			green = city_colors[l][1];
+			blue = city_colors[l][2];
+			l++;
 		}
-		else {
-			glColor3f(1,1,1);
-			red = true;
-		}
+		glColor3f(red, green, blue);
 
 		for (int v=0; v<3; v++) {
 			glNormal3f(normals[9*i+3*v], normals[(9*i)+(3*v)+1], normals[(9*i)+(3*v)+2]);
 			glVertex3f(vertices[9*i+3*v], vertices[(9*i)+(3*v)+1], vertices[(9*i)+(3*v)+2]);
+			k++;
 		}
 	}
+	//cout << k << '\n';
 	glEnd();
 
 	glPopMatrix();
@@ -1511,7 +1522,7 @@ int main(int argc, char *argv[]) {
 			shape.spot.disable();
 	}
 
-	
+
 	
 	
 
@@ -1533,7 +1544,12 @@ int main(int argc, char *argv[]) {
 	// load obj files
 	//if (DEBUG_LOAD_OBJS)
 	shape.loadData();
-	
+	/*
+	cout << city_nIndices << '\n';
+	for (int i = 0; i < city_nIndices; i++) {
+		cout << city_indices[i] << '\n';
+	}
+	*/
 	glutSetCursor(GLUT_CURSOR_NONE);
 
 	//shape.findminsmaxs();
@@ -1552,14 +1568,27 @@ int main(int argc, char *argv[]) {
 	cout << "lightview: \n";
 	lightViewMatrix.print();
 	*/
+	int counter1 = 0;
+	int counter2 = 0;
+	int counter3 = 0;
+
+	//srand(1);
+	srand(time(NULL));
+
+	for (int i = 0; i < 45; i++) {
+		city_colors[i][0] = 0.01*(rand()%100+1);
+		city_colors[i][1] = 0.01*(rand()%100+1);
+		city_colors[i][2] = 0.01*(rand()%100+1);
+	}
 
 	glutMainLoop();
 
 	return 0;
+
 }
 
 void Shape::initializeParticles() {
-	srand(1); // set seed for randomness
+	//srand(1); // set seed for randomness
 
 	for (int i=0; i<num_particles; i++) {
 		particle[i].pos = Vector3(0,1,25);

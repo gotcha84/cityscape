@@ -124,8 +124,9 @@ class Window { // output window related routines
 	static void drawPointLight();
 	static void drawSpotLight();
 	static void drawSkyBox();
-	
+	static void drawGrass();
 };
+
 
 // house
 static float house_vertices[] = {  
@@ -205,5 +206,7 @@ static float *city_normals;
 static float *city_texcoords;
 static int city_nIndices;
 static int *city_indices;
+
+static float city_colors[45][3];
 
 #endif

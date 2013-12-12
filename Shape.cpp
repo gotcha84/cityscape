@@ -15,6 +15,7 @@ using namespace std;
 static Vector3 e = Vector3(75, 4, 0); // origin
 static Vector3 d = Vector3(74, 4, 0); // look at
 static Vector3 up = Vector3(0, 1, 0); // up
+static Vector3 left = Vector3(0,0,1);
 
 static char texture_building[32] = "building1.ppm";
 static char texture_road[32] = "road1.ppm";
@@ -358,9 +359,6 @@ void Window::displayCallback(void) {
 					shape.makeShadows();
 				}
 				else {
-					glDisable(GL_LIGHTING);
-					Window::drawCWSkyBox();
-
 					glEnable(GL_LIGHTING);
 					glDisable(GL_LIGHT0);
 					glDisable(GL_LIGHT1);
@@ -444,7 +442,7 @@ void Window::displayCallback(void) {
 	if (falling == true) {
 		shape.gravity(tmpx, tmpz);
 	}
-	
+
 	if (anglex_change != 0.0 || angley_change != 0.0) {
 		shape.updateLookAtVector();
 		anglex_change = 0.0;
@@ -1788,24 +1786,42 @@ void Shape::initializeHeightMap() {
 void Shape::updateLookAtVector() {
 	Matrix4 tmp;
 
-	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp = Matrix4(
+		d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0
+	);
 	tmp.transpose();
 	float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
 	tmp.rotateY(rad_anglex_change);
 	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
 
-	tmp = Matrix4(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp = Matrix4(
+		d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ(), 1, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0
+	);
 	tmp.transpose();
 	float rad_angley_change = 3.14*(angley_change/10)/180.0;
 	tmp.rotateX(rad_angley_change);
 	d = Vector3(tmp.get(0, 0)+e.getX(), tmp.get(0, 1)+e.getY(), tmp.get(0, 2)+e.getZ());
 
-	tmp = Matrix4(up.getX(), up.getY(), up.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp = Matrix4(
+		up.getX(), up.getY(), up.getZ(), 1, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0
+	);
 	tmp.transpose();
 	tmp.rotateWindowX(rad_angley_change);
 	up = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
-	
+
 	updateCameraMatrix(0, 0, 0);
+	
+	anglex_change = 0;
+	angley_change = 0;
 }
 
 void Shape::drawHouse() {
@@ -2140,14 +2156,15 @@ void Window::processSpecialKeys(int key, int x, int y) {
 }
 
 void Window::processMouseMove(int x, int y) {
-	if (x_mouse != x) {
+  if (x_mouse != x) {
 		anglex_change = float(x_mouse-x)/anglex_factor;
 	}
-	if (y_mouse != y) {
+
+  if (y_mouse != y) {
 		angley_change = float(y_mouse-y)/angley_factor;
 		float tmp = angley;
 		angley+=angley_change;
-		
+
 		if (angley > 90.0) {
 			angley = 90.0;
 			angley_change = 0.0;
@@ -2156,13 +2173,13 @@ void Window::processMouseMove(int x, int y) {
 			angley = -90.0;
 			angley_change = 0.0;
 		}
-	}
-	
-	if (warp == true) {
+  }
+        
+  if (warp == true) {
 		if (x != Window::width/2 || y != Window::height/2) {
 			glutWarpPointer(Window::width/2, Window::height/2);
 		}
-	}
+  }
 
 	x_mouse = x;
 	y_mouse = y;

@@ -542,7 +542,7 @@ void Window::displayCallback(void) {
 		glutSolidSphere(50, 100, 100);
 	glPopMatrix();
 	
-	if (lightPos.getY() < (0.0f + 50)) {
+	if (lightPos.getY() < (0.0f - 100)) {
 		sun_underground = true;
 	}
 	else {

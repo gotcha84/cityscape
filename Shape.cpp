@@ -28,7 +28,7 @@ static char displayString2[32] = "HEIGHTMAP OFF\n";
 static char displayString3[32] = "HEIGHTMAP ON\n";
 static bool heightMapEnabled = true;
 static bool falling = false;
-static float velocity = 1.0;
+static float velocity = 2.5;
 static bool collisiondetected = false;
 static bool heightmaptoggledon = false;
 static bool heightmaptoggledoff = false;
@@ -146,7 +146,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
-static bool fullscreen = false;
+static bool fullscreen = true;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -807,12 +807,12 @@ void Shape::makeShadows() {
 	//Calculate texture matrix for projection
 	//This matrix takes us from eye space to the light's clip space
 	//It is postmultiplied by the inverse of the current view matrix when specifying texgen
-	Matrix4 biasMatrix(0.5f, 0.0f, 0.0f, 0.0f,
+	Matrix4 biasMatrix(
+								0.5f, 0.0f, 0.0f, 0.0f,
 								0.0f, 0.5f, 0.0f, 0.0f,
 								0.0f, 0.0f, 0.5f, 0.0f,
 								0.5f, 0.5f, 0.5f, 1.0f);	//bias from [-1, 1] to [0, 1]
-	//biasMatrix.transpose(); // MAYBE NOT TRANSPOSE
-	biasMatrix.scale(1.05, 1.05, 1.05);
+	biasMatrix.scale(1.0, 1.0, 1.0);
 	Matrix4 textureMatrix = biasMatrix.multiply(lightProjectionMatrix.multiply(lightViewMatrix));
 	textureMatrix.transpose(); // MAYBE NOT TRANSPOSE
 	GLfloat* tmp2;

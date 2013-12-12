@@ -97,13 +97,25 @@ class Shape {
 
 		void makeShadows();
 		void initializeShadows();
+		void drawShadowWorld();
 		
-		void initializeParticles();
-		void updateParticles();
-		void drawParticles();
-		void initializeWeatherParticles();
-		void updateWeatherParticles();
-		void drawWeatherParticles();
+		void drawSeason();
+
+		void initializeFire();
+		void updateFire();
+		void drawFire();
+
+		void initializeSnow();
+		void updateSnow();
+		void drawSnow();
+
+		void initializeRain();
+		void updateRain();
+		void drawRain();
+
+		void initializeLeaves();
+		void updateLeaves();
+		void drawLeaves();
 
 		void findminsmaxs();
 		void gravity(int, int);

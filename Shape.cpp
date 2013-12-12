@@ -22,24 +22,24 @@ static float curr_height = 0.0;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
 static bool moved = false;
-static bool showShadows = true;
+static bool showShadows = false;
 FPS_COUNTER fpsCounter;
 const int shadowMapSizex=1366;
 const int shadowMapSizey=768;
 GLuint shadowMapTexture;
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
-Vector3 lightPos = Vector3(0.0, sqrt(1000000.0), 0.0);
+Vector3 lightPos = Vector3(0.0, 1000, 0.0);
 
 static bool warp = true;
-static float speed_up = true;
+static bool speed_up = true;
 static float sun_speed = 0.0001;
 static bool shadowMode = false;
 static bool godMode = false;
 static float city_scale = 0.1;
 
 // for camera matrix
-static Vector3 e = Vector3(0, 4, 0); // origin
-static Vector3 d = Vector3(0, 4, -1); // look at
+static Vector3 e = Vector3(75, 4, 0); // origin
+static Vector3 d = Vector3(76, 4, -1); // look at
 static Vector3 up = Vector3(0, 1, 0); // up
 static float anglex = 0.0;
 static float angley = 0.0;
@@ -95,7 +95,7 @@ static bool DEBUG_DRAW_LIGHTS = false;
 
 static Shape shape;
 static double spin_angle = 0;
-static int shape_key = 8;
+static int shape_key = 1;
 
 static bool red = false;
 
@@ -119,7 +119,6 @@ GLfloat p_position[] = {0, -5, 0, 1};
 GLfloat s_position[] = {-10, 0, 0, 1};
 GLfloat s_direction[] = {1, 0, 0};
 static Matrix4 sun_mv = Matrix4();
-static float theta = 0;
 
 static bool shader_toggle = false;
 static bool toggle1 = false;
@@ -131,7 +130,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
-static bool fullscreen = true;
+static bool fullscreen = false;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -150,16 +149,27 @@ clock_t Start = clock();
 static int noculltimer = 0;
 static int culltimer = 0;
 
-static int num_particles = 5000;
-static vector<Particle> particle (num_particles, Particle());
+static int num_fire = 5000;
+static int num_snow = 500;
+static int num_rain = 1000;
+static int num_leaves = 50;
 
-static int num_wparticles = 500;
-static vector<Particle> wparticle (num_wparticles, Particle());
+static vector<Particle> fire (num_fire, Particle());
+static vector<Particle> snow (num_snow, Particle());
+static vector<Particle> rain (num_rain, Particle());
+static vector<Particle> leaves (num_leaves, Particle());
+
+/*
+0 = winter
+1 = spring
+2 = summer
+3 = fall
+*/
+static int season = 0;
 
 //----------------------------------------------------------------------------
 // Callback method called when system is idle.
 void Window::idleCallback(void) {
-	//shape.spin(spin_angle);
 	displayCallback();
 }
 
@@ -345,80 +355,19 @@ void Shape::updateCameraMatrix(float dx, float dy, float dz) {
 // Callback method called when window readraw is necessary or
 // when glutPostRedisplay() was called.
 void Window::displayCallback(void) {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear color and depth buffers
+	// clear color and depth buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 	glMatrixMode(GL_MODELVIEW);
-	
 
-	/*
-	if (speed_up == true) {
-		
-	GLfloat temp_mv[16];
-					glGetFloatv(GL_PROJECTION_MATRIX, temp_mv);
-					sun_mv = Matrix4(
-						temp_mv[0], temp_mv[1], temp_mv[2], temp_mv[3],
-						temp_mv[4], temp_mv[5], temp_mv[6], temp_mv[7],
-						temp_mv[8], temp_mv[9], temp_mv[10], temp_mv[11],
-						temp_mv[12], temp_mv[13], temp_mv[14], temp_mv[15]
-					);
-					sun_mv.transpose();
-					sun_mv.print();
-		
-		//shape.getProjectionMatrix().print();
-	}
-	*/
-	//shape.getModelViewMatrix().print();
-	//shape.getProjectionMatrix().print();
-
-	Material cube = Material(GL_FRONT_AND_BACK);
-	Material dragon = Material(GL_FRONT);
-	Material bunny = Material(GL_FRONT_AND_BACK);
-	Material sandal = Material(GL_FRONT_AND_BACK);
+	drawSkyBox();
 
 	switch (shape_key) {
-		case 1:
-			if (TURN_LIGHTS_ON) {
-				cube.setAmbient(no_mat);
-				cube.setDiffuse(mat_diffuse);
-				cube.setSpecular(mat_specular);
-				cube.setShininess(high_shininess);
-				cube.setEmission(no_mat);
-			}
-
-			break;
-
-		case 2: // dragon
-			dragon.setAmbient(no_mat);
-			dragon.setDiffuse(mat_diffuse);
-			dragon.setSpecular(mat_specular);
-			dragon.setShininess(high_shininess);
-			dragon.setEmission(no_mat);
-
-			drawShape(dragon_nVerts, dragon_vertices, dragon_normals);
-			break;
-		case 3: // bunny
-			bunny.setAmbient(no_mat);
-			bunny.setDiffuse(no_mat);
-			bunny.setSpecular(mat_specular);
-			bunny.setShininess(high_shininess);
-			bunny.setEmission(no_mat);
-
-			drawShape(bunny_nVerts, bunny_vertices, bunny_normals);
-			break;
-		case 4: // sandle
-			sandal.setAmbient(no_mat);
-			sandal.setDiffuse(no_mat);
-			sandal.setSpecular(mat_specular);
-			sandal.setShininess(high_shininess);
-			sandal.setEmission(no_mat);
-
-			drawShape(sandal_nVerts, sandal_vertices, sandal_normals);
-			break;
-		case 8: // house scene1
+		case 1: // city scene
 			// uncomment below for rotating lights + shadows
 			if (moved) {
 				moved = false;
@@ -428,78 +377,31 @@ void Window::displayCallback(void) {
 				shape.makeShadows();
 			}
 			else {
-				shape.drawHouse();
-				Window::drawShape(city_nVerts, city_vertices, city_normals);
-				
-				shape.updateParticles();
-				shape.drawParticles();
-
-				shape.updateWeatherParticles();
-				shape.drawWeatherParticles();
+				shape.drawShadowWorld();
 			}
 			break;
-		case 9: // house scene2
+		case 2: // house scene
 			shape.drawHouse();
 			break;
 	}
-	Matrix4 tmp;
 
+	Matrix4 tmp;
 	tmp = Matrix4(lightPos.getX(), lightPos.getY(), lightPos.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	tmp.transpose();
 	//float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
 	tmp.rotateZ(sun_speed);
 	lightPos = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
 		
-
-	/*
-
-	if (toggle2) {
-		glPushMatrix();
-			glRotatef(theta, 0, 0, 1);
-			if (!toggle_freeze)
-				shape.point.setPosition(p_position);
-			if (DEBUG_DRAW_LIGHTS) drawPointLight();
-		glPopMatrix();
-	}
-
-	if (toggle3) {
-		glPushMatrix();
-			glRotatef(theta, 0, 1, 0);
-			if (!toggle_freeze) {
-				shape.spot.setPosition(s_position);
-				shape.spot.setSpotDirection(s_direction);
-			}
-			if (DEBUG_DRAW_LIGHTS) drawSpotLight();
-		glPopMatrix();
-	}
-	*/
 	bool print_lightpos = false;
 	if (toggle_freeze) {
 		sun_speed = 0.0;
 	}
-	else if (speed_up == true) {
-			
+	else if (speed_up == true) {		
 		sun_speed = 0.001;
 	}
 	else {
 		sun_speed = 0.0001;
-
 	}
-	
-	if (theta > 360 || theta < 0) theta = 0;
-
-	/*
-	// TODO: sphere for testing
-	glPushMatrix();
-		glColor3f(1,1,1);
-		Matrix4 i = Matrix4();
-		i.identity();
-		glLoadMatrixf(i.getGLMatrix());
-		glTranslatef(-5,0,0);
-		glutSolidSphere(1,10,10);
-	glPopMatrix();
-	*/
-	//angle_change = 0.0;
 	
 	int tmpx;
 	int tmpz;
@@ -509,7 +411,8 @@ void Window::displayCallback(void) {
 	}
 	else {
 		tmpx = floor(e.getX()+0.5);
-	}			
+	}
+
 	if (e.getZ() < 0) {
 		tmpz = -1*floor((-1.0*e.getZ())+0.5);
 	}
@@ -518,7 +421,6 @@ void Window::displayCallback(void) {
 	}
 	
 	if (falling == true) {
-		//cout << "falling\n";
 		shape.gravity(tmpx, tmpz);
 	}
 	
@@ -528,28 +430,7 @@ void Window::displayCallback(void) {
 		angley_change = 0.0;
 	}
 
-	spin_leftarm+=0.00*leftarm_dir;
-	spin_rightarm+=0.00*rightarm_dir;
-	if (spin_leftarm > 3.14*3/4 || spin_leftarm < 3.14/4) leftarm_dir=-1*leftarm_dir;
-	if (spin_rightarm > 3.14/4 || spin_rightarm < -3.14/4) rightarm_dir=-1*rightarm_dir;
-
-	spin_leftleg+=0.00*leftleg_dir;
-	spin_rightleg+=0.00*rightleg_dir;
-	if (spin_leftleg > 3.14/16 || spin_leftleg < -3.14/16) leftleg_dir=-1*leftleg_dir;
-	if (spin_rightleg > 3.14/16 || spin_rightleg < -3.14/16) rightleg_dir=-1*rightleg_dir;
-
-	// axis
-	glBegin(GL_LINES);
-		glColor3f(1, 0, 1);
-				
-		glVertex3f(0,-Window::height,0);
-		glVertex3f(0,Window::height,0);
-	glEnd();
-	
-
 	if (collisiondetected) {
-
-		
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
 			glLoadIdentity();
@@ -571,23 +452,25 @@ void Window::displayCallback(void) {
 			glPopMatrix();
 			counter++;
 			if (counter == 100) {
-				//cout << "printed!\n";
 				collisiondetected = false;
 				counter = 0;
 			}
-		
 	}
 
+	// draw sun
+	glPushMatrix();
+		glTranslated(lightPos.getX(), lightPos.getY(), lightPos.getZ());
 		glColor3f(1, 1, 0);
-	glEnable(GL_POINT_SMOOTH);
-	glPointSize(50);
-	glDisable(GL_DEPTH_TEST);
-	glBegin(GL_POINTS);
-
-		glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
-
-	glEnd();
-	glEnable(GL_DEPTH_TEST);
+		glEnable(GL_POINT_SMOOTH);
+		glPointSize(50);
+		
+		/*
+		glBegin(GL_POINTS);
+			glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
+		glEnd();
+		*/
+		glutSolidSphere(10, 100, 100);
+	glPopMatrix();
 	
 	glFlush();  
 	glutSwapBuffers();
@@ -595,13 +478,9 @@ void Window::displayCallback(void) {
 }
 
 void Window::drawDirectionalLight() {
-		//glBegin(GL_LINES);
-			glColor3f(1, 1, 0);
-			//glVertex3f(0, 50, 0);
-			//glVertex3f(10, 10 - 5*d_position[1], 0 - 5*d_position[2]);
-			glTranslated(0, 25, 0);
-			glutSolidSphere(2.5, 100, 100);
-		//glEnd();
+		glColor3f(1, 1, 0);
+		glTranslated(0, 25, 0);
+		glutSolidSphere(2.5, 100, 100);
 }
 
 void Window::drawPointLight() {
@@ -620,7 +499,6 @@ void Window::drawSpotLight() {
 }
 
 void Shape::initializeShadows() {
-	//cout << "HIASDHISA\n";
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glShadeModel(GL_SMOOTH);
@@ -656,73 +534,56 @@ void Shape::initializeShadows() {
 	glMaterialf(GL_FRONT, GL_SHININESS, 16.0f);
 	GLfloat p[16];
 
-	/*
-	cout << v[0] << '\n';
-	cout << v[1] << '\n';
-	cout << v[2] << '\n';
-	cout << v[3] << '\n';
-	*/
-
-			
 	glPushMatrix();
+		glLoadIdentity();
+		gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
+		glGetFloatv(GL_MODELVIEW_MATRIX, p);
+		cameraProjectionMatrix = Matrix4(
+			p[0],p[1],p[2],p[3],
+			p[4],p[5],p[6],p[7],
+			p[8],p[9],p[10],p[11],
+			p[12],p[13],p[14],p[15]);
 	
-	glLoadIdentity();
-	gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
-	glGetFloatv(GL_MODELVIEW_MATRIX, p);
-	cameraProjectionMatrix = Matrix4(
-		p[0],p[1],p[2],p[3],
-		p[4],p[5],p[6],p[7],
-		p[8],p[9],p[10],p[11],
-		p[12],p[13],p[14],p[15]);
-	
-	glLoadIdentity();
-	gluLookAt(e.getX(), e.getY(), e.getZ(),
-				d.getX(), d.getY(), d.getZ(),
-				//0, 0, 0,
-				0, 1, 0);
+		glLoadIdentity();
+		gluLookAt(e.getX(), e.getY(), e.getZ(),
+					d.getX(), d.getY(), d.getZ(),
+					//0, 0, 0,
+					0, 1, 0);
 				
-				//up.getX(), up.getY(), up.getZ());
-	glGetFloatv(GL_MODELVIEW_MATRIX, p);
-		cameraViewMatrix = Matrix4(
-		p[0],p[1],p[2],p[3],
-		p[4],p[5],p[6],p[7],
-		p[8],p[9],p[10],p[11],
-		p[12],p[13],p[14],p[15]);
+					//up.getX(), up.getY(), up.getZ());
+		glGetFloatv(GL_MODELVIEW_MATRIX, p);
+			cameraViewMatrix = Matrix4(
+			p[0],p[1],p[2],p[3],
+			p[4],p[5],p[6],p[7],
+			p[8],p[9],p[10],p[11],
+			p[12],p[13],p[14],p[15]);
 	
 	
-	glLoadIdentity();
-	gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 1500.0);
-	glGetFloatv(GL_MODELVIEW_MATRIX, p);
-	lightProjectionMatrix = Matrix4(
-		p[0],p[1],p[2],p[3],
-		p[4],p[5],p[6],p[7],
-		p[8],p[9],p[10],p[11],
-		p[12],p[13],p[14],p[15]);
+		glLoadIdentity();
+		gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 1500.0);
+		glGetFloatv(GL_MODELVIEW_MATRIX, p);
+		lightProjectionMatrix = Matrix4(
+			p[0],p[1],p[2],p[3],
+			p[4],p[5],p[6],p[7],
+			p[8],p[9],p[10],p[11],
+			p[12],p[13],p[14],p[15]);
 	
-	glLoadIdentity();
+		glLoadIdentity();
 
-
-	//gluLookAt(sqrt(0.0), sqrt(10000.0), sqrt(0.0),
-	gluLookAt(	lightPos.getX(), lightPos.getY(), lightPos.getZ(),
-				d.getX(), d.getY(), d.getZ(),
-				//0, 0, 0,
-				0, 1, 0);
+		//gluLookAt(sqrt(0.0), sqrt(10000.0), sqrt(0.0),
+		gluLookAt(lightPos.getX(), lightPos.getY(), lightPos.getZ(),
+					d.getX(), d.getY(), d.getZ(),
+					//0, 0, 0,
+					0, 1, 0);
 				
-				//up.getX(), up.getY(), up.getZ());
-	glGetFloatv(GL_MODELVIEW_MATRIX, p);
-	lightViewMatrix = Matrix4(
-		p[0],p[1],p[2],p[3],
-		p[4],p[5],p[6],p[7],
-		p[8],p[9],p[10],p[11],
-		p[12],p[13],p[14],p[15]);
-	
-		
+					//up.getX(), up.getY(), up.getZ());
+		glGetFloatv(GL_MODELVIEW_MATRIX, p);
+		lightViewMatrix = Matrix4(
+			p[0],p[1],p[2],p[3],
+			p[4],p[5],p[6],p[7],
+			p[8],p[9],p[10],p[11],
+			p[12],p[13],p[14],p[15]);
 	glPopMatrix();
-	//timer.Reset();
-
-	
-
-
 	
 	gluLookAt(
 		e.getX(), e.getY(), e.getZ(), 
@@ -733,12 +594,7 @@ void Shape::initializeShadows() {
 }
 
 void Shape::makeShadows() {
-
-	
-	
-		//float angle=timer.GetTime()/10;	
-		//cout << "angle: " << angle << '\n';
-		//cout << "hihi\n";
+	//============================================================================
 	//First pass - from light's point of view
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // causes spasms
 	//glClear(GL_DEPTH_BUFFER_BIT);
@@ -761,12 +617,7 @@ void Shape::makeShadows() {
 	glColorMask(0, 0, 0, 0);
 	
 	//Draw the scene
-	shape.drawHouse();
-	//shape.updateParticles();
-	//shape.drawParticles();
-	Window::drawShape(city_nVerts, city_vertices, city_normals);
-	
-	
+	shape.drawShadowWorld();
 		
 	//Read the depth buffer into the shadow map texture
 	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
@@ -777,6 +628,9 @@ void Shape::makeShadows() {
 	glShadeModel(GL_SMOOTH);
 	glColorMask(1, 1, 1, 1);
 
+
+
+	//============================================================================
 	//2nd pass - Draw from camera's point of view
 	glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -793,6 +647,8 @@ void Shape::makeShadows() {
 	GLfloat black[3] = {GLfloat(0), GLfloat(0), GLfloat(0)};
 	GLfloat white[3] = {GLfloat(1), GLfloat(1), GLfloat(1)};
 	//Use dim light to represent shadowed areas
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT1);
 	glLightfv(GL_LIGHT1, GL_POSITION, tmp);
 	glLightfv(GL_LIGHT1, GL_AMBIENT, almostwhite);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, almostwhite);
@@ -800,15 +656,12 @@ void Shape::makeShadows() {
 	//glLightfv(GL_LIGHT1, GL_AMBIENT, white*0.2f);
 	//glLightfv(GL_LIGHT1, GL_DIFFUSE, white*0.2f);
 	//glLightfv(GL_LIGHT1, GL_SPECULAR, black);
-	glEnable(GL_LIGHT1);
-	glEnable(GL_LIGHTING);
-	shape.drawHouse();
-	//shape.updateParticles();
-	//shape.drawParticles();
-	Window::drawShape(city_nVerts, city_vertices, city_normals);
-	
 
-	
+	shape.drawShadowWorld();
+
+
+
+	//============================================================================
 	//3rd pass
 	//Draw with bright light
 	//glLightfv(GL_LIGHT1, GL_DIFFUSE, white);
@@ -870,11 +723,7 @@ void Shape::makeShadows() {
 	glAlphaFunc(GL_GEQUAL, 0.99f);
 	glEnable(GL_ALPHA_TEST);
 
-	shape.drawHouse();
-
-	//shape.updateParticles();
-	//shape.drawParticles();
-	Window::drawShape(city_nVerts, city_vertices, city_normals);
+	shape.drawShadowWorld();
 
 	//Disable textures and texgen
 	glDisable(GL_TEXTURE_2D);
@@ -931,6 +780,11 @@ void Shape::makeShadows() {
 	
 	
 
+}
+
+void Shape::drawShadowWorld() {
+	Window::drawShape(city_nVerts, city_vertices, city_normals);
+	shape.drawSeason();
 }
 
 void Window::drawCube() {
@@ -1442,11 +1296,17 @@ Matrix4& Shape::getCameraMatrix() {
 }
 
 int main(int argc, char *argv[]) {
+	//srand(1);
+	srand(time(NULL));
+
 	float specular[]  = {1.0, 1.0, 1.0, 1.0};
 	float shininess[] = {100.0};
 
-	glutInit(&argc, argv);      	      	      // initialize GLUT
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);   // open an OpenGL context with double buffering, RGB colors, and depth buffering
+	glutInit(&argc, argv); // initialize GLUT
+	// open an OpenGL context with double buffering, RGB colors, and depth buffering
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+
+	// initialize window
 	if (fullscreen) {
 		Window::width = 1366;
 		Window::height = 768;
@@ -1455,8 +1315,8 @@ int main(int argc, char *argv[]) {
 		Window::width = 512;
 		Window::height = 512;
 	}
-	glutInitWindowSize(Window::width, Window::height);      // set initial window size
-	glutCreateWindow("CityScape");    	      // open window and set window title
+	glutInitWindowSize(Window::width, Window::height); // set initial window size
+	glutCreateWindow("CityScape"); // open window and set window title
 	if (fullscreen) glutFullScreen();
 
 	if(!GLEE_ARB_depth_texture || !GLEE_ARB_shadow) {
@@ -1469,8 +1329,7 @@ int main(int argc, char *argv[]) {
 	glClear(GL_DEPTH_BUFFER_BIT);       	      // clear depth buffer
 	glClearColor(0.0, 0.0, 0.0, 0.0);   	      // set clear color to black
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // set polygon drawing mode to fill front and back of each polygon
-	glEnable(GL_CULL_FACE);     // disable backface culling to render both sides of polygons
-	glDisable(GL_LIGHTING);
+	glEnable(GL_CULL_FACE);											// disable backface culling to render both sides of polygons
 	glShadeModel(GL_SMOOTH);             	      // set shading to smooth
 
 	glMatrixMode(GL_PROJECTION);
@@ -1525,59 +1384,35 @@ int main(int argc, char *argv[]) {
 			shape.spot.disable();
 	}
 
-
-	
-	
-
 	// Install callback functions:
 	glutDisplayFunc(Window::displayCallback);
 	glutReshapeFunc(Window::reshapeCallback);
 	glutIdleFunc(Window::idleCallback);
 	shape.loadTexture();
-
-	// to avoid cube turning white on scaling down
-	//glEnable(GL_TEXTURE_2D);   // enable texture mapping
 	
 	// Process keyboard input
 	glutKeyboardFunc(Window::processNormalKeys);
-	glutSpecialFunc(Window::processSpecialKeys);
+	//glutSpecialFunc(Window::processSpecialKeys);
 	//glutMouseFunc(Window::processMouseClick);
 	glutPassiveMotionFunc(Window::processMouseMove);
 	
 	// load obj files
-	//if (DEBUG_LOAD_OBJS)
 	shape.loadData();
-	/*
-	cout << city_nIndices << '\n';
-	for (int i = 0; i < city_nIndices; i++) {
-		cout << city_indices[i] << '\n';
-	}
-	*/
+
+	// hide mouse cursor
 	glutSetCursor(GLUT_CURSOR_NONE);
 
 	//shape.findminsmaxs();
-	
 	shape.initializeHeightMap();
-	//shape.initializeShadows();
-	shape.initializeParticles();
-	shape.initializeWeatherParticles();
 	
-	/*
-	cout << "camproj: \n";
-	cameraProjectionMatrix.print();
-	cout << "camview: \n";
-	cameraViewMatrix.print();
-	cout << "lightproj: \n";
-	lightProjectionMatrix.print();
-	cout << "lightview: \n";
-	lightViewMatrix.print();
-	*/
+	shape.initializeFire();
+	shape.initializeSnow();
+	shape.initializeRain();
+	shape.initializeLeaves();
+	
 	int counter1 = 0;
 	int counter2 = 0;
 	int counter3 = 0;
-
-	//srand(1);
-	srand(time(NULL));
 
 	for (int i = 0; i < 45; i++) {
 		city_colors[i][0] = 0.01*(rand()%100+1);
@@ -1588,48 +1423,61 @@ int main(int argc, char *argv[]) {
 	glutMainLoop();
 
 	return 0;
-
 }
 
-void Shape::initializeParticles() {
-	//srand(1); // set seed for randomness
+void Shape::drawSeason() {
+	glDisable(GL_LIGHTING);
 
-	for (int i=0; i<num_particles; i++) {
-		particle[i].pos = Vector3(0,1,25);
-		particle[i].vel = Vector3(0,0,0);
-		//particle[i].color = Vector4(1,1,1,1);
-		//particle[i].rotate = 0;
-		particle[i].age = rand()%100+1;
-		particle[i].lifetime = rand()%100+1;
+	switch (season) {
+		case 0: // winter
+			shape.updateSnow();
+			shape.drawSnow();
+			break;
+		case 1: // spring
+			shape.updateRain();
+			shape.drawRain();
+			break;
+		case 2: // summer
+			shape.updateFire();
+			shape.drawFire();
+			break;
+		case 3: // fall
+			shape.updateLeaves();
+			shape.drawLeaves();
+			break;
 	}
 }
 
-void Shape::updateParticles() {
+void Shape::initializeFire() {
 
-	for (int i=0; i<num_particles; i++) {
-		if (particle[i].age > particle[i].lifetime) {
-			particle[i].pos = Vector3(0,1,25);
-			particle[i].vel = Vector3(0,0,0);
-			particle[i].age = 0;
+	for (int i=0; i<num_fire; i++) {
+		fire[i].pos = Vector3(rand()%50+50,0,0);
+		fire[i].vel = Vector3(0,0,0);
+		fire[i].age = rand()%100+1;
+		fire[i].lifetime = rand()%100+1;
+	}
+}
+
+void Shape::updateFire() {
+
+	for (int i=0; i<num_fire; i++) {
+		if (fire[i].age > fire[i].lifetime) {
+			fire[i].pos = Vector3(rand()%50+50,0,0);
+			fire[i].vel = Vector3(0,0,0);
+			fire[i].age = 0;
 		}
 		else {
-			float x = particle[i].pos.getX();
-			float y = particle[i].pos.getY();
-			float z = particle[i].pos.getZ();
+			float x = fire[i].pos.getX();
+			float y = fire[i].pos.getY();
+			float z = fire[i].pos.getZ();
 		
-			float vx = particle[i].vel.getX();
-			float vy = particle[i].vel.getY();
-			float vz = particle[i].vel.getZ();
+			float vx = fire[i].vel.getX();
+			float vy = fire[i].vel.getY();
+			float vz = fire[i].vel.getZ();
 
 			x += vx;
 			y += vy;
 			z += vz;
-
-			/*
-			vx = 0.05*(rand()%3-1);
-			vy = 0.025*(rand()%2);
-			vz = 0.05*(rand()%3-1);
-			*/
 
 			float pos_vx = 0.01*(rand()%100+1);
 			float neg_vx = -0.01*(rand()%100+1);
@@ -1643,63 +1491,55 @@ void Shape::updateParticles() {
 			vy = 0.1*(0.01*(rand()%100+1));
 			vz = 0.1* ((pick_pos_vz) ? pos_vz : neg_vz);
 
-			particle[i].pos = Vector3(x,y,z);
-			particle[i].vel = Vector3(vx,vy,vz);
-			particle[i].age += 0.2;
+			fire[i].pos = Vector3(x,y,z);
+			fire[i].vel = Vector3(vx,vy,vz);
+			fire[i].age += 0.2;
 		}
 	}
 }
 
-void Shape::drawParticles() {
+void Shape::drawFire() {
 	glEnable(GL_POINT_SMOOTH);
 	glPointSize(10);
 
 	glBegin(GL_POINTS);
-		for (int i=0; i<num_particles; i++) {
-			glColor3f(1-particle[i].age/particle[i].lifetime,rand()%2*(1-particle[i].age/particle[i].lifetime),0);
-			//glColor3f(1,1,0);
-			glVertex3f(particle[i].pos.getX(), particle[i].pos.getY(), particle[i].pos.getZ());
+		for (int i=0; i<num_fire; i++) {
+			glColor3f(1-fire[i].age/fire[i].lifetime,rand()%2*(1-fire[i].age/fire[i].lifetime),0);
+			glVertex3f(fire[i].pos.getX(), fire[i].pos.getY(), fire[i].pos.getZ());
 		}
 	glEnd();
 }
 
-void Shape::initializeWeatherParticles() {
-	srand(1); // set seed for randomness
+void Shape::initializeSnow() {
 
-	for (int i=0; i<num_wparticles; i++) {
-		wparticle[i].pos = Vector3(0.1*(rand()%201-100),10,0.1*(rand()%201-100));
-		wparticle[i].vel = Vector3(0,0,0);
-		wparticle[i].age = rand()%100+1;
-		wparticle[i].lifetime = rand()%100+1;
+	for (int i=0; i<num_snow; i++) {
+		snow[i].vel = Vector3(0,0,0);
+		snow[i].age = rand()%100+1;
+		snow[i].lifetime = rand()%100+1;
+		snow[i].pos = Vector3(0.1*(rand()%201-100),10-10*(snow[i].age - snow[i].lifetime),0.1*(rand()%201-100));
 	}
 }
 
-void Shape::updateWeatherParticles() {
+void Shape::updateSnow() {
 
-	for (int i=0; i<num_wparticles; i++) {
-		if (wparticle[i].age > wparticle[i].lifetime) {
-			wparticle[i].pos = Vector3(0.1*(rand()%201-100),10,0.1*(rand()%201-100));
-			wparticle[i].vel = Vector3(0,0,0);
-			wparticle[i].age = 0;
+	for (int i=0; i<num_snow; i++) {
+		if (snow[i].age > snow[i].lifetime) {
+			snow[i].pos = Vector3(0.1*(rand()%201-100),10,0.1*(rand()%201-100));
+			snow[i].vel = Vector3(0,0,0);
+			snow[i].age = 0;
 		}
 		else {
-			float x = wparticle[i].pos.getX();
-			float y = wparticle[i].pos.getY();
-			float z = wparticle[i].pos.getZ();
+			float x = snow[i].pos.getX();
+			float y = snow[i].pos.getY();
+			float z = snow[i].pos.getZ();
 		
-			float vx = wparticle[i].vel.getX();
-			float vy = wparticle[i].vel.getY();
-			float vz = wparticle[i].vel.getZ();
+			float vx = snow[i].vel.getX();
+			float vy = snow[i].vel.getY();
+			float vz = snow[i].vel.getZ();
 
 			x += vx;
 			y += vy;
 			z += vz;
-
-			/*
-			vx = 0.05*(rand()%3-1);
-			vy = 0.025*(rand()%2);
-			vz = 0.05*(rand()%3-1);
-			*/
 
 			float pos_vx = 0.01*(rand()%50+1);
 			float neg_vx = -0.01*(rand()%50+1);
@@ -1713,19 +1553,20 @@ void Shape::updateWeatherParticles() {
 			vy = -0.1*(0.01*(rand()%50+1));
 			vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
 
-			wparticle[i].pos = Vector3(x,y,z);
-			wparticle[i].vel = Vector3(vx,vy,vz);
-			wparticle[i].age += 0.01;
+			snow[i].pos = Vector3(x,y,z);
+			snow[i].vel = Vector3(vx,vy,vz);
+			snow[i].age += 0.01;
 		}
 	}
 }
 
-void Shape::drawWeatherParticles() {
+void Shape::drawSnow() {
 	glPushMatrix();
 	
 	glEnable(GL_POINT_SMOOTH);
 	glPointSize(5);
 	
+	// translate to center around player
 	GLfloat curr[16];
 	glGetFloatv(GL_MODELVIEW_MATRIX, curr);
 	Matrix4 mv = Matrix4(
@@ -1746,9 +1587,170 @@ void Shape::drawWeatherParticles() {
 	
 	
 	glBegin(GL_POINTS);
-		for (int i=0; i<num_wparticles; i++) {
+		for (int i=0; i<num_snow; i++) {
 			glColor3f(1,1,1);
-			glVertex3f(wparticle[i].pos.getX(), wparticle[i].pos.getY(), wparticle[i].pos.getZ());
+			glVertex3f(snow[i].pos.getX(), snow[i].pos.getY(), snow[i].pos.getZ());
+		}
+	glEnd();
+
+
+	glPopMatrix();
+}
+
+void Shape::initializeRain() {
+
+	for (int i=0; i<num_rain; i++) {
+		rain[i].vel = Vector3(0,-0.05,0);
+		rain[i].age = rand()%100+1;
+		rain[i].lifetime = rand()%100+1;
+		rain[i].pos = Vector3(0.1*(rand()%201-100),10-10*(rain[i].age/rain[i].lifetime),0.1*(rand()%201-100));
+	}
+}
+
+void Shape::updateRain() {
+
+	for (int i=0; i<num_rain; i++) {
+		if (rain[i].age > rain[i].lifetime) {
+			rain[i].pos = Vector3(0.1*(rand()%201-100),10,0.1*(rand()%201-100));
+			rain[i].vel = Vector3(0,-0.05,0);
+			rain[i].age = 0;
+		}
+		else {
+			float x = rain[i].pos.getX();
+			float y = rain[i].pos.getY();
+			float z = rain[i].pos.getZ();
+		
+			float vy = rain[i].vel.getY();
+
+			y += vy;
+
+			rain[i].pos = Vector3(x,y,z);
+			rain[i].age += 0.01;
+		}
+	}
+}
+
+void Shape::drawRain() {
+	glPushMatrix();
+	
+	//glEnable(GL_POINT_SMOOTH);
+	//glPointSize(5);
+	glLineWidth(2);
+	
+	// translate to center around player
+	GLfloat curr[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, curr);
+	Matrix4 mv = Matrix4(
+		curr[0], curr[1], curr[2], curr[3],
+		curr[4], curr[5], curr[6], curr[7],
+		curr[8], curr[9], curr[10], curr[11],
+		curr[12], curr[13], curr[14], curr[15]
+	);
+	
+	Matrix4 cam =  shape.getCameraMatrix();
+	Matrix4 follow_cam = mv.multiply(cam);
+	
+	mv.set(0,3,follow_cam.get(0,3));
+	mv.set(1,3,follow_cam.get(1,3));
+	mv.set(2,3,follow_cam.get(2,3));
+	
+	glLoadMatrixf(mv.getGLMatrix());
+	
+	
+	glBegin(GL_LINES);
+		for (int i=0; i<num_rain; i++) {
+			glColor3f(0,0,1);
+			glVertex3f(rain[i].pos.getX(), rain[i].pos.getY()-0.2, rain[i].pos.getZ());
+			glVertex3f(rain[i].pos.getX(), rain[i].pos.getY()+0.2, rain[i].pos.getZ());
+		}
+	glEnd();
+
+
+	glPopMatrix();
+}
+
+void Shape::initializeLeaves() {
+
+	for (int i=0; i<num_leaves; i++) {
+		leaves[i].pos = Vector3(-10,0.01*(rand()%10000),0.1*(rand()%201-100));
+		leaves[i].vel = Vector3(0,0,0);
+		leaves[i].age = rand()%100+1;
+		leaves[i].lifetime = rand()%100+1;
+		leaves[i].color = Vector4(0.01*(rand()%100+1),0.01*(rand()%100),0,1);
+	}
+}
+
+void Shape::updateLeaves() {
+
+	for (int i=0; i<num_leaves; i++) {
+		if (leaves[i].age > leaves[i].lifetime) {
+			leaves[i].pos = Vector3(-10,-0.1*(rand()%201-100),0.1*(rand()%201-100));
+			leaves[i].vel = Vector3(0,0,0);
+			leaves[i].age = 0;
+			leaves[i].color = Vector4(0.01*(rand()%100+1),0.01*(rand()%100),0,1);
+		}
+		else {
+			float x = leaves[i].pos.getX();
+			float y = leaves[i].pos.getY();
+			float z = leaves[i].pos.getZ();
+		
+			float vx = leaves[i].vel.getX();
+			float vy = leaves[i].vel.getY();
+			float vz = leaves[i].vel.getZ();
+
+			x += vx;
+			y += vy;
+			z += vz;
+
+			float pos_vy = 0.01*(rand()%50+1);
+			float neg_vy = -0.01*(rand()%50+1);
+			bool pick_pos_vy = rand()%2;
+			
+			float pos_vz = 0.01*(rand()%50+1);
+			float neg_vz = -0.01*(rand()%50+1);
+			bool pick_pos_vz = rand()%2;
+
+			vx = 0.1*(0.01*(rand()%50+1));
+			vy = 0.1*((pick_pos_vy) ? pos_vy : neg_vy);
+			vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
+
+			leaves[i].pos = Vector3(x,y,z);
+			leaves[i].vel = Vector3(vx,vy,vz);
+			leaves[i].age += 0.05;
+		}
+	}
+}
+
+void Shape::drawLeaves() {
+	glPushMatrix();
+	
+	glEnable(GL_POINT_SMOOTH);
+	glPointSize(15);
+	
+	// translate to center around player
+	GLfloat curr[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, curr);
+	Matrix4 mv = Matrix4(
+		curr[0], curr[1], curr[2], curr[3],
+		curr[4], curr[5], curr[6], curr[7],
+		curr[8], curr[9], curr[10], curr[11],
+		curr[12], curr[13], curr[14], curr[15]
+	);
+	
+	Matrix4 cam =  shape.getCameraMatrix();
+	Matrix4 follow_cam = mv.multiply(cam);
+	
+	mv.set(0,3,follow_cam.get(0,3));
+	mv.set(1,3,follow_cam.get(1,3));
+	mv.set(2,3,follow_cam.get(2,3));
+	
+	glLoadMatrixf(mv.getGLMatrix());
+	
+	
+	glBegin(GL_POINTS);
+		for (int i=0; i<num_leaves; i++) {
+			glColor3f(leaves[i].color.getX(),leaves[i].color.getY(),leaves[i].color.getZ());
+			glVertex3f(leaves[i].pos.getX(), leaves[i].pos.getY(), leaves[i].pos.getZ());
 		}
 	glEnd();
 
@@ -1778,7 +1780,7 @@ void Window::drawSkyBox() {
 
 		glBegin(GL_QUADS);
 			// Draw front face:
-			glColor3f(0,1,0);
+			glColor3f(1,1,1);
 			glNormal3f(0.0, 0.0, 5000.0);   
 			glVertex3f(-5000.0,  5000.0,  5000.0);
 			glVertex3f( 5000.0,  5000.0,  5000.0);
@@ -1894,22 +1896,6 @@ void Shape::gravity(int x, int y) {
 }
 
 void Shape::initializeHeightMap() {
-	//cout << city_nVerts << '\n';
-	//cout << city_nIndices << '\n';
-	float x_interval;
-	float y_interval;
-	float z_interval;
-	float changex;
-	float changey;
-	float changez;
-	float change;
-	float tmpx;
-	float tmpy;
-	float tmpz;
-	//int counter;
-	int tmptmpx;
-	int tmptmpy;
-	int tmptmpz;
 	float minx;
 	float maxx;
 	float minz;
@@ -1926,12 +1912,11 @@ void Shape::initializeHeightMap() {
 	//int arr[1][2] = {{0, 1}};
 	int arr[4][2] = {{0, 1}, {0, 3}, {1, 3}, {2, 3}};  
 	//int arr[5][2] = {{0, 1}, {0, 2}, {0, 3}, {1, 3}, {2, 3}};   
-	for (int i = 0; i < city_nVerts*3; i++)
-	{
+	for (int i = 0; i < city_nVerts*3; i++) {
 		city_vertices[i]/=10.0;
 	}
 
-	
+	// TODO: fix min/max (only takes 2 args)
 	for (int i = 0; i < city_nVerts*3; i+=12) { // else 84 or  126
 		tmpminx = min(city_vertices[i], city_vertices[i+3], city_vertices[i+6], city_vertices[i+9]); 
 		tmpmaxx = max(city_vertices[i], city_vertices[i+3], city_vertices[i+6], city_vertices[i+9]); 
@@ -2112,8 +2097,7 @@ void Shape::spin(double deg)
 }
 
 
-void Window::processNormalKeys(unsigned char key, int x, int y)
-{
+void Window::processNormalKeys(unsigned char key, int x, int y) {
 	Vector3 tmp_vec = Vector3(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ()); // second arg could be 0 i think
 	tmp_vec.normalize();
 	Matrix4 tmpa = Matrix4(tmp_vec);
@@ -2363,10 +2347,8 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 			}
 			break;
 		case 'g':
-
 			moved = true;
 			godMode = !godMode;
-
 			if (godMode == false) {
 				heightMapEnabled = true;
 				e = Vector3(0, 4, 10);
@@ -2379,7 +2361,6 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 				walk_z_factor = 1.0;
 			}
 			else {
-
 				heightMapEnabled = false;
 				e = Vector3(0,100,0);
 				d = Vector3(0,0,0);
@@ -2390,6 +2371,12 @@ void Window::processNormalKeys(unsigned char key, int x, int y)
 				walk_y_factor = 100.0;
 				walk_z_factor = 100.0;
 			}
+			break;
+		case 'n':
+			if (season == 3)
+				season = 0;
+			else
+				season++;
 	}
 	/*
 	cout << "--------------------\nbefore: \n";

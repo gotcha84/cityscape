@@ -10,7 +10,17 @@
 #include <algorithm>
 
 using namespace std;
-
+static char texture_building[32] = "building1.ppm";
+static char texture_road[32] = "road1.ppm";
+static char texture_top[32] = "";
+GLuint shadowMapTexture;
+GLuint buildingTexture1;
+GLuint buildingTexture2;
+GLuint buildingTexture3;
+GLuint buildingTexture4;
+GLuint buildingTexture5;
+GLuint roadTexture;
+GLuint topTexture;
 static bool printedfirst = false;
 static char displayString[32] = "COLLISION DETECTED";
 static bool heightMapEnabled = true;
@@ -22,11 +32,11 @@ static float curr_height = 0.0;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
 static bool moved = false;
-static bool showShadows = true;
+static bool showShadows = false;
 FPS_COUNTER fpsCounter;
 const int shadowMapSizex=1366;
 const int shadowMapSizey=768;
-GLuint shadowMapTexture;
+
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
 Vector3 lightPos = Vector3(0.0, sqrt(1000000.0), 0.0);
 
@@ -131,7 +141,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
-static bool fullscreen = true;
+static bool fullscreen = false;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -186,29 +196,77 @@ void Window::reshapeCallback(int w, int h) {
 }
 
 
-void Shape::loadTexture()
+void Shape::loadTexture(char* the_texture)
 {
-	GLuint texture[1];     // storage for one texture
+
+	//GLuint texture;     // storage for one texture
 	int twidth, theight;   // texture width/height [pixels]
 	unsigned char* tdata;  // texture pixel data
 	// Load image file
-	tdata = loadPPM("sky1.ppm", twidth, theight);
+
+	tdata = loadPPM(the_texture, twidth, theight);
 	if (tdata==NULL) return;
-	
+	int num;
 	// Create ID for texture
-	glGenTextures(1, &texture[0]);   
+	if (the_texture[0] == 'b') {
+		
+		num = the_texture[8] - '0';
+		if (num == 1) {
+			
+		glGenTextures(1, &buildingTexture1);   
+		//cout << "HIHI\n";
+	// Set this texture to be the one we are working with
+		glBindTexture(GL_TEXTURE_2D, buildingTexture1);
+		}
+		if (num == 2) {
+			
+		glGenTextures(1, &buildingTexture2);   
+		//cout << "HIHI\n";
+	// Set this texture to be the one we are working with
+		glBindTexture(GL_TEXTURE_2D, buildingTexture2);
+		}
+		if (num == 3) {
+		glGenTextures(1, &buildingTexture3);   
+		//cout << "HIHI\n";
+	// Set this texture to be the one we are working with
+		glBindTexture(GL_TEXTURE_2D, buildingTexture3);
+		}
+		if (num == 4) {
+		glGenTextures(1, &buildingTexture4);   
+		//cout << "HIHI\n";
+	// Set this texture to be the one we are working with
+		glBindTexture(GL_TEXTURE_2D, buildingTexture4);
+		}
+		if (num == 5) {
+		glGenTextures(1, &buildingTexture5);   
+		//cout << "HIHI\n";
+	// Set this texture to be the one we are working with
+		glBindTexture(GL_TEXTURE_2D, buildingTexture5);
+		}
+	}
+	else if (the_texture[0] == 'r') {
+		//cout << "HIHI2\n";
+		glGenTextures(1, &roadTexture);   
 
 	// Set this texture to be the one we are working with
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
+		glBindTexture(GL_TEXTURE_2D, roadTexture);
+	}
+	else if (the_texture == texture_top) {
+		glGenTextures(1, &topTexture);   
+
+	// Set this texture to be the one we are working with
+		glBindTexture(GL_TEXTURE_2D, topTexture);
+	}
 	
 	// Generate the texture
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, twidth, theight, 0, GL_RGB, GL_UNSIGNED_BYTE, tdata);
 	
 	// Set bi-linear filtering for both minification and magnification
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
 }
 
 unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
@@ -391,33 +449,6 @@ void Window::displayCallback(void) {
 
 			break;
 
-		case 2: // dragon
-			dragon.setAmbient(no_mat);
-			dragon.setDiffuse(mat_diffuse);
-			dragon.setSpecular(mat_specular);
-			dragon.setShininess(high_shininess);
-			dragon.setEmission(no_mat);
-
-			drawShape(dragon_nVerts, dragon_vertices, dragon_normals);
-			break;
-		case 3: // bunny
-			bunny.setAmbient(no_mat);
-			bunny.setDiffuse(no_mat);
-			bunny.setSpecular(mat_specular);
-			bunny.setShininess(high_shininess);
-			bunny.setEmission(no_mat);
-
-			drawShape(bunny_nVerts, bunny_vertices, bunny_normals);
-			break;
-		case 4: // sandle
-			sandal.setAmbient(no_mat);
-			sandal.setDiffuse(no_mat);
-			sandal.setSpecular(mat_specular);
-			sandal.setShininess(high_shininess);
-			sandal.setEmission(no_mat);
-
-			drawShape(sandal_nVerts, sandal_vertices, sandal_normals);
-			break;
 		case 8: // house scene1
 			// uncomment below for rotating lights + shadows
 			if (moved) {
@@ -429,13 +460,13 @@ void Window::displayCallback(void) {
 			}
 			else {
 				shape.drawHouse();
-				Window::drawShape(city_nVerts, city_vertices, city_normals);
+				Window::drawShape(city_nVerts, city_vertices, city_normals, city_texcoords);
 				
-				shape.updateParticles();
-				shape.drawParticles();
+				//shape.updateParticles();
+				//shape.drawParticles();
 
-				shape.updateWeatherParticles();
-				shape.drawWeatherParticles();
+				//shape.updateWeatherParticles();
+				//shape.drawWeatherParticles();
 			}
 			break;
 		case 9: // house scene2
@@ -578,7 +609,7 @@ void Window::displayCallback(void) {
 		
 	}
 
-		glColor3f(1, 1, 0);
+	glColor3f(1, 1, 0);
 	glEnable(GL_POINT_SMOOTH);
 	glPointSize(50);
 	glDisable(GL_DEPTH_TEST);
@@ -588,10 +619,10 @@ void Window::displayCallback(void) {
 
 	glEnd();
 	glEnable(GL_DEPTH_TEST);
-	
+	glDisable(GL_POINT_SMOOTH);
 	glFlush();  
 	glutSwapBuffers();
-	//glutPostRedisplay();
+	glutPostRedisplay();
 }
 
 void Window::drawDirectionalLight() {
@@ -620,7 +651,7 @@ void Window::drawSpotLight() {
 }
 
 void Shape::initializeShadows() {
-	//cout << "HIASDHISA\n";
+	
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glShadeModel(GL_SMOOTH);
@@ -734,7 +765,7 @@ void Shape::initializeShadows() {
 
 void Shape::makeShadows() {
 
-	
+	//cout << "HIAHID\n";
 	
 		//float angle=timer.GetTime()/10;	
 		//cout << "angle: " << angle << '\n';
@@ -764,7 +795,7 @@ void Shape::makeShadows() {
 	shape.drawHouse();
 	//shape.updateParticles();
 	//shape.drawParticles();
-	Window::drawShape(city_nVerts, city_vertices, city_normals);
+	Window::drawShape(city_nVerts, city_vertices, city_normals, city_texcoords);
 	
 	
 		
@@ -805,7 +836,7 @@ void Shape::makeShadows() {
 	shape.drawHouse();
 	//shape.updateParticles();
 	//shape.drawParticles();
-	Window::drawShape(city_nVerts, city_vertices, city_normals);
+	Window::drawShape(city_nVerts, city_vertices, city_normals, city_texcoords);
 	
 
 	
@@ -874,7 +905,7 @@ void Shape::makeShadows() {
 
 	//shape.updateParticles();
 	//shape.drawParticles();
-	Window::drawShape(city_nVerts, city_vertices, city_normals);
+	Window::drawShape(city_nVerts, city_vertices, city_normals, city_texcoords);
 
 	//Disable textures and texgen
 	glDisable(GL_TEXTURE_2D);
@@ -1370,14 +1401,19 @@ void Shape::calculateStuff(int nVerts, float *vertices) {
 
 }
 
-void Window::drawShape(int nVerts, float *vertices, float *normals) {
+void Window::drawShape(int nVerts, float *vertices, float *normals, float *texcoords) {
+	glColor3f(1, 1, 1);
 	float red = 0.0;
 	float green = 0.0;
 	float blue = 0.0;
-	glPushMatrix();
+	GLfloat m[4] = {GLfloat(0.0), GLfloat(1.0), GLfloat(1.0), GLfloat(0.0)};
+	GLfloat n[4] = {GLfloat(0.0), GLfloat(0.0), GLfloat(1.0), GLfloat(0.0)};
 	
+	glPushMatrix();
+	int o = 0;
 	// scale city down
 	GLfloat curr[16];
+	bool text = false;
 	glGetFloatv(GL_MODELVIEW_MATRIX, curr);
 	Matrix4 curr_mv = Matrix4(
 		curr[0], curr[1], curr[2], curr[3],
@@ -1386,9 +1422,14 @@ void Window::drawShape(int nVerts, float *vertices, float *normals) {
 		curr[12], curr[13], curr[14], curr[15]
 	);
 	//curr_mv.scale(city_scale, city_scale, city_scale);
+	if (showShadows == false) {
+		glEnable(GL_TEXTURE_2D);
+	}
 	glLoadMatrixf(curr_mv.getGLMatrix());
 	
+	//glBindTexture(GL_TEXTURE_2D, buildingTexture1);
 	glBegin(GL_TRIANGLES);
+	int p = 0;
 	int k = 0;
 	int l = 0;
 	for (int i=0; i<nVerts/3; i++) {
@@ -1396,12 +1437,61 @@ void Window::drawShape(int nVerts, float *vertices, float *normals) {
 			red = city_colors[l][0];
 			green = city_colors[l][1];
 			blue = city_colors[l][2];
-			l++;
+				l++;
 		}
-		glColor3f(red, green, blue);
 
+		text = false;
+		glColor3f(red, green, blue);
+		if ((showShadows == true)  && ((abs(vertices[9*i]) < 0.5) || (abs(vertices[9*i+1]) < 0.5) || (abs(vertices[9*i+2]) < 0.5))) {
+			glColor3f(0.8, 0.8, 0.8);
+		}
+		//text = false;
+		if (showShadows == false) {
+			if ((abs(vertices[9*i]) < 0.5) || (abs(vertices[9*i+1]) < 0.5) || (abs(vertices[9*i+2]) < 0.5)) {
+				glColor3f(0.5,0.5,0.5);
+				o = k;
+				//glActiveTexture(GL_TEXTURE0);
+				glEnd();
+				if (showShadows == false) {
+					glBindTexture(GL_TEXTURE_2D, roadTexture);
+				}
+				glBegin(GL_TRIANGLES);
+				//glEnable(GL_TEXTURE_2D);
+				text = true;
+			}
+			else { 
+				//glActiveTexture(GL_TEXTURE1);
+				glEnd();
+
+
+				if (l%5 == 0) {
+				
+					glBindTexture(GL_TEXTURE_2D, buildingTexture1);
+				}
+				else if (l%5 == 1) {
+					glBindTexture(GL_TEXTURE_2D, buildingTexture2);
+				}
+				else if (l%5 == 2) {
+					glBindTexture(GL_TEXTURE_2D, buildingTexture3);
+				}
+				else if (l%5 == 3) {
+					glBindTexture(GL_TEXTURE_2D, buildingTexture4);
+				}
+				else if (l%5 == 4) {
+					glBindTexture(GL_TEXTURE_2D, buildingTexture5);
+				}
+			
+				glBegin(GL_TRIANGLES);
+				//glEnable(GL_TEXTURE_2D);
+			}
+		}
 		for (int v=0; v<3; v++) {
 			glNormal3f(normals[9*i+3*v], normals[(9*i)+(3*v)+1], normals[(9*i)+(3*v)+2]);
+			if (showShadows == false) {
+				glTexCoord2f(texcoords[2*k]/1.0, texcoords[2*k+1]/1.0);
+			}
+			//else {
+				//glTexCoord2f
 			glVertex3f(vertices[9*i+3*v], vertices[(9*i)+(3*v)+1], vertices[(9*i)+(3*v)+2]);
 			k++;
 		}
@@ -1533,7 +1623,18 @@ int main(int argc, char *argv[]) {
 	glutDisplayFunc(Window::displayCallback);
 	glutReshapeFunc(Window::reshapeCallback);
 	glutIdleFunc(Window::idleCallback);
-	shape.loadTexture();
+
+	
+	shape.loadTexture("building1.ppm");
+	shape.loadTexture("building3.ppm");
+	shape.loadTexture("building2.ppm");
+	shape.loadTexture("building4.ppm");
+	shape.loadTexture("building5.ppm");
+	
+	
+	
+	shape.loadTexture("road2.ppm");
+	
 
 	// to avoid cube turning white on scaling down
 	//glEnable(GL_TEXTURE_2D);   // enable texture mapping
@@ -1559,8 +1660,8 @@ int main(int argc, char *argv[]) {
 	
 	shape.initializeHeightMap();
 	//shape.initializeShadows();
-	shape.initializeParticles();
-	shape.initializeWeatherParticles();
+	//shape.initializeParticles();
+	//shape.initializeWeatherParticles();
 	
 	/*
 	cout << "camproj: \n";
@@ -1874,8 +1975,6 @@ void Shape::gravity(int x, int y) {
 		falling = false;
 	}
 	*/
-	cout << "curr height: " << curr_height << '\n';
-	cout << "needed height: " << needed_height << '\n';
 	if (heightMapEnabled == true) {
 	//else {
 		if (curr_height - velocity <= needed_height) {
@@ -2057,6 +2156,31 @@ Matrix4 Shape::setScaleMatrix(float factor) {
 	return scale;
 }
 
+/*
+void Shape::drawHouse() {
+	glColor3f(1, 1, 1);
+	int tris = 0;
+	GLfloat k[4] = {GLfloat(0.0), GLfloat(1.0), GLfloat(1.0), GLfloat(0.0)};
+	GLfloat l[4] = {GLfloat(0.0), GLfloat(0.0), GLfloat(1.0), GLfloat(0.0)};
+	glEnable(GL_TEXTURE_2D);
+	glBegin(GL_QUADS);
+	for (int i=0; i<7; i++) {
+
+
+		//glColor3f(house_colors[12*i], house_colors[12*i+1], house_colors[12*i+2]);
+		//glNormal3f(house_indices[i*6], house_indices[i*6+1], house_indices[i*6+2]);
+		for (int v=0; v<4; v++) {
+			glNormal3f(house_indices[i*6], house_indices[i*6+1], house_indices[i*6+2]);
+			glTexCoord2f(k[v], l[v]);
+			glVertex3f(house_vertices[12*i+3*v], house_vertices[(12*i)+(3*v)+1], house_vertices[(12*i)+(3*v)+2]);
+		}
+		//glNormal3f(house_indices[i*6+3], house_indices[i*6+4], house_indices[i*6+5]);
+	}
+	glEnd();
+	glDisable(GL_TEXTURE_2D);
+}
+*/
+
 void Shape::drawHouse() {
 	int tris = 0;
 	glBegin(GL_QUADS);
@@ -2070,40 +2194,8 @@ void Shape::drawHouse() {
 	}
 	glEnd();
 
-	glBegin(GL_TRIANGLES);
-	for (int i=7; i<8; i++) {
-		glColor3f(house_colors[12*i], house_colors[12*i+1], house_colors[12*i+2]);
-		glNormal3f(house_indices[i*6], house_indices[i*6+1], house_indices[i*6+2]);
-		for (int v=0; v<3; v++) {
-			glVertex3f(house_vertices[12*i+3*v], house_vertices[(12*i)+(3*v)+1], house_vertices[(12*i)+(3*v)+2]);
-		}
-		tris++;
-	}
-	glEnd();
 
-	glBegin(GL_QUADS);
-	for (int i=8; i<10; i++) {
-		glColor3f(house_colors[12*i-3*tris], house_colors[12*i+1-3*tris], house_colors[12*i+2-3*tris]);
-		glNormal3f(house_indices[i*6-3*tris], house_indices[i*6+1-3*tris], house_indices[i*6+2-3*tris]);
-		for (int v=0; v<4; v++) {
-			glVertex3f(house_vertices[12*i+3*v-3*tris], house_vertices[(12*i)+(3*v)+1-3*tris], house_vertices[(12*i)+(3*v)+2-3*tris]);
-		}
-		glNormal3f(house_indices[i*6+3-3*tris], house_indices[i*6+4-3*tris], house_indices[i*6+5-3*tris]);
-	}
-	glEnd();
-	
-	glBegin(GL_TRIANGLES);
-	for (int i=10; i<11; i++) {
-		glColor3f(house_colors[12*i-3*tris], house_colors[12*i+1-3*tris], house_colors[12*i+2-3*tris]);
-		glNormal3f(house_indices[i*6]-3*tris, house_indices[i*6+1]-3*tris, house_indices[i*6+2]-3*tris);
-		for (int v=0; v<3; v++) {
-			glVertex3f(house_vertices[12*i+3*v-3*tris], house_vertices[(12*i)+(3*v)+1-3*tris], house_vertices[(12*i)+(3*v)+2-3*tris]);
-		}
-		tris++;
-	}
-	glEnd();
 }
-
 
 void Shape::spin(double deg)
 {

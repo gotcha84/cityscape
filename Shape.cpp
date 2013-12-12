@@ -357,6 +357,7 @@ void Window::displayCallback(void) {
 				if (!sun_underground) {
 					shape.initializeShadows();
 					shape.makeShadows();
+					shape.drawSeason();
 				}
 				else {
 					glEnable(GL_LIGHTING);
@@ -541,8 +542,8 @@ void Window::displayCallback(void) {
 		glColor3f(1, (lightPos.getY())/1000.0f+0.25, 0);
 		glutSolidSphere(50, 100, 100);
 	glPopMatrix();
-	
-	if (lightPos.getY() < (0.0f - 100)) {
+
+	if (lightPos.getY() < (0.0f - 500)) {
 		sun_underground = true;
 	}
 	else {
@@ -1025,7 +1026,7 @@ int main(int argc, char *argv[]) {
 	}
 	glutInitWindowSize(Window::width, Window::height); // set initial window size
 	glutCreateWindow("CityScape"); // open window and set window title
-	if (fullscreen) glutFullScreen();
+	//if (fullscreen) glutFullScreen();
 
 	if(!GLEE_ARB_depth_texture || !GLEE_ARB_shadow) {
 		printf("I require ARB_depth_texture and ARB_shadow extensionsn\n");

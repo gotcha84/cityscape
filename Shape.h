@@ -86,7 +86,7 @@ class Shape {
 		void calculateNormals();
 		void calculateStuff(int, float*);
 		void loadData();
-		void loadTexture();
+		void loadTexture(char[]);
 		unsigned char* loadPPM(const char*, int&, int&);
 		void computeBoundingBox(vector<vector<MatrixTransform*>>, int);
 		void updateCameraMatrix(float dx,float dy,float dz);
@@ -128,7 +128,8 @@ class Window { // output window related routines
     static void idleCallback(void);
     static void reshapeCallback(int, int);
     static void displayCallback(void);
-	static void drawShape(int nVerts, float* vertices, float* normals);
+	//static void drawShape(int nVerts, float* vertices, float* normals);
+	static void drawShape(int nVerts, float* vertices, float* normals, float *texcoords);
 	static void processNormalKeys(unsigned char, int, int);
 	static void processSpecialKeys(int, int, int);
 	static void processMouseClick(int, int, int, int);

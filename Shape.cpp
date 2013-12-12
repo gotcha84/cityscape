@@ -431,8 +431,8 @@ void Window::displayCallback(void) {
 				shape.drawHouse();
 				Window::drawShape(city_nVerts, city_vertices, city_normals);
 				
-				//shape.updateParticles();
-				//shape.drawParticles();
+				shape.updateParticles();
+				shape.drawParticles();
 
 				shape.updateWeatherParticles();
 				shape.drawWeatherParticles();
@@ -1710,7 +1710,7 @@ void Shape::updateWeatherParticles() {
 			bool pick_pos_vz = rand()%2;
 
 			vx = 0.1*((pick_pos_vx) ? pos_vx : neg_vx);
-			vy = -0.01*(0.01*(rand()%50+1));
+			vy = -0.1*(0.01*(rand()%50+1));
 			vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
 
 			wparticle[i].pos = Vector3(x,y,z);

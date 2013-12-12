@@ -11,6 +11,11 @@
 
 using namespace std;
 
+// for camera matrix
+static Vector3 e = Vector3(75, 4, 0); // origin
+static Vector3 d = Vector3(74, 4, 0); // look at
+static Vector3 up = Vector3(0, 1, 0); // up
+
 static char texture_building[32] = "building1.ppm";
 static char texture_road[32] = "road1.ppm";
 static char texture_top[32] = "";
@@ -36,35 +41,29 @@ static int counter = 0;
 static int counter2 = 0;
 static int counter3 = 0;
 static float curr_height = 0.0;
-//TIMER timer;
-//float angle=timer.GetTime()/10;
+
 static bool moved = false;
 static bool showShadows = false;
-FPS_COUNTER fpsCounter;
+static bool sun_underground = false;
 const int shadowMapSizex=1366;
 const int shadowMapSizey=768;
 
 Matrix4 lightProjectionMatrix, lightViewMatrix, cameraProjectionMatrix, cameraViewMatrix;
-Vector3 lightPos = Vector3(0.0, 1000, 0.0);
+Vector3 lightPos = Vector3(0.0, 1000.0, 0.0);
 
 static bool warp = true;
 static bool speed_up = true;
-static float sun_speed = 0.0001;
+static float sun_speed = 0.001;
 static bool shadowMode = false;
 static bool godMode = false;
 static float city_scale = 0.1;
 
-// for camera matrix
-static Vector3 e = Vector3(75, 4, 0); // origin
-static Vector3 d = Vector3(74, 4, 0); // look at
-static Vector3 up = Vector3(0, 1, 0); // up
 static float anglex = 0.0;
 static float angley = 0.0;
 static float anglex_change = 0.0;
 static float angley_change = 0.0;
 static float anglex_factor = 1.0;
 static float angley_factor = 1.0;
-//static float rad_angle_change = -3.14*angle_change/180.0;
 
 static float walk_x_factor = 1.0;
 static float walk_y_factor = 1.0;
@@ -83,58 +82,13 @@ static int z_shift = 463;
 static vector<vector<int> > heightMap(1019, vector<int>(787, 0));
 static bool init_heightMap = false;
 
-static int selected_point = -1;
-static int threshold = 50;
-static const int degs = 5;
-static float asdf =-3.14*degs/180;
-static float controls[7][3] = {
-	{0, 2, 0}, {0.5,1.5,0}, {1.5, 1, 0}, {0.75, 0.5, 0.0}, 
-	{1.5,0.25,0}, {1,0,0}, {0.5, -0.25, 0.0}};
-static const float max_range = 1.0;
-static const int num_points = 20;
-static float inter[num_points][3];
-static float inter2[num_points][3];
-static float inter_ymax = FLT_MIN;
-static float inter_ymin = FLT_MAX;
-static float normal[num_points][3];
-static float normal2[num_points][3];
-static float rotated_inter[360/degs][num_points][3];
-static float rotated_inter2[360/degs][num_points][3];
-static float rotated_normal[360/degs][num_points][3];
-static float rotated_normal2[360/degs][num_points][3];
-
-static bool TURN_LIGHTS_ON = false;
-
-static bool DEBUGGER = false;
-static bool DEBUG_LOAD_OBJS = true;
-static bool DEBUG_DRAW_LIGHTS = false;
-
 static Shape shape;
-static double spin_angle = 0;
 static int shape_key = 1;
-
-static bool red = false;
 
 static bool left_clicked = false;
 static bool right_clicked = false;
 static int x_mouse;
 static int y_mouse;
-
-GLfloat no_mat[] = { 0.0, 0.0, 0.0, 1.0 };
-GLfloat mat_ambient[] = { 0.7, 0.7, 0.7, 1.0 };
-GLfloat mat_ambient_color[] = { 0.8, 0.8, 0.2, 1.0 };
-GLfloat mat_diffuse[] = { 0.1, 0.5, 0.8, 1.0 };
-GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
-GLfloat no_shininess[] = { 0.0 };
-GLfloat low_shininess[] = { 5.0 };
-GLfloat high_shininess[] = { 128 };
-GLfloat mat_emission[] = {0.3, 0.2, 0.2, 0.0};
-
-GLfloat d_position[] = {sqrt(10000.0), sqrt(10000.0), 0, 0};
-GLfloat p_position[] = {0, -5, 0, 1};
-GLfloat s_position[] = {-10, 0, 0, 1};
-GLfloat s_direction[] = {1, 0, 0};
-static Matrix4 sun_mv = Matrix4();
 
 static bool shader_toggle = false;
 static bool toggle1 = false;
@@ -148,25 +102,8 @@ int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
 static bool fullscreen = true;
 
-//MatrixTransform army;
-static int army_size = 5;
-vector<vector<MatrixTransform*>> robot(army_size, vector<MatrixTransform*> (army_size));
-static float spin_leftarm = 3.14/2;
-static float leftarm_dir = -4;
-static float spin_rightarm = 0;
-static float rightarm_dir = 4;
-
-static float spin_leftleg = 0;
-static float leftleg_dir = -2;
-static float spin_rightleg = 0;
-static float rightleg_dir = 2;
-
-clock_t Start = clock();
-static int noculltimer = 0;
-static int culltimer = 0;
-
 static int num_fire = 5000;
-static int num_snow = 500;
+static int num_snow = 1000;
 static int num_rain = 1000;
 static int num_leaves = 50;
 
@@ -191,38 +128,23 @@ void Window::idleCallback(void) {
 
 //----------------------------------------------------------------------------
 // Callback method called when window is resized.
-
 void Window::reshapeCallback(int w, int h) {
 	glPushMatrix();
-	glLoadIdentity();
-		gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 1000);
-	glGetFloatv(GL_MODELVIEW_MATRIX, shape.getModelViewMatrix().getGLMatrix());
+		glLoadIdentity();
+		gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 10000);
+		glGetFloatv(GL_MODELVIEW_MATRIX, shape.getModelViewMatrix().getGLMatrix());
 	glPopMatrix();
-/*	
-	if (!fullscreen) {
-		width = w;
-		height = h;
-	}
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glFrustum(-10.0, 10.0, -10.0, 10.0, 10, 1000.0); // set perspective projection viewing frustum
-	glTranslatef(0, 0, -20);
-*/
-	
 }
 
-
-void Shape::loadTexture(char* the_texture)
-{
-
-	//GLuint texture;     // storage for one texture
+void Shape::loadTexture(char* the_texture) {
+	//GLuint texture;			 // storage for one texture
 	int twidth, theight;   // texture width/height [pixels]
 	unsigned char* tdata;  // texture pixel data
 	// Load image file
-
 	tdata = loadPPM(the_texture, twidth, theight);
 	if (tdata==NULL) return;
 	int num;
+	
 	// Create ID for texture
 	if (the_texture[0] == 'b') {
 		
@@ -230,47 +152,46 @@ void Shape::loadTexture(char* the_texture)
 		if (num == 1) {
 			
 		glGenTextures(1, &buildingTexture1);   
-		//cout << "HIHI\n";
-	// Set this texture to be the one we are working with
+		
+		// Set this texture to be the one we are working with
 		glBindTexture(GL_TEXTURE_2D, buildingTexture1);
 		}
 		if (num == 2) {
 			
 		glGenTextures(1, &buildingTexture2);   
-		//cout << "HIHI\n";
-	// Set this texture to be the one we are working with
+		
+		// Set this texture to be the one we are working with
 		glBindTexture(GL_TEXTURE_2D, buildingTexture2);
 		}
 		if (num == 3) {
 		glGenTextures(1, &buildingTexture3);   
-		//cout << "HIHI\n";
-	// Set this texture to be the one we are working with
+		
+		// Set this texture to be the one we are working with
 		glBindTexture(GL_TEXTURE_2D, buildingTexture3);
 		}
 		if (num == 4) {
 		glGenTextures(1, &buildingTexture4);   
-		//cout << "HIHI\n";
-	// Set this texture to be the one we are working with
+		
+		// Set this texture to be the one we are working with
 		glBindTexture(GL_TEXTURE_2D, buildingTexture4);
 		}
 		if (num == 5) {
 		glGenTextures(1, &buildingTexture5);   
-		//cout << "HIHI\n";
-	// Set this texture to be the one we are working with
+		
+		// Set this texture to be the one we are working with
 		glBindTexture(GL_TEXTURE_2D, buildingTexture5);
 		}
 	}
 	else if (the_texture[0] == 'r') {
-		//cout << "HIHI2\n";
 		glGenTextures(1, &roadTexture);   
 
-	// Set this texture to be the one we are working with
+		// Set this texture to be the one we are working with
 		glBindTexture(GL_TEXTURE_2D, roadTexture);
 	}
 	else if (the_texture == texture_top) {
 		glGenTextures(1, &topTexture);   
 
-	// Set this texture to be the one we are working with
+		// Set this texture to be the one we are working with
 		glBindTexture(GL_TEXTURE_2D, topTexture);
 	}
 	
@@ -285,8 +206,7 @@ void Shape::loadTexture(char* the_texture)
 
 }
 
-unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
-{
+unsigned char* Shape::loadPPM(const char* filename, int& width, int& height) {
 	const int BUFSIZE = 128;
 	FILE* fp;
 	unsigned int read;
@@ -295,8 +215,7 @@ unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
 	char* retval_fgets;
 	size_t retval_sscanf;
 
-	if ( (fp=fopen(filename, "rb")) == NULL)
-	{
+	if ( (fp=fopen(filename, "rb")) == NULL) {
 		std::cerr << "error reading ppm file, could not locate " << filename << std::endl;
 		width = 0;
 		height = 0;
@@ -307,8 +226,7 @@ unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
 	retval_fgets = fgets(buf[0], BUFSIZE, fp);
 
 	// Read width and height:
-	do
-	{
+	do {
 		retval_fgets=fgets(buf[0], BUFSIZE, fp);
 	} while (buf[0][0] == '#');
 	retval_sscanf=sscanf(buf[0], "%s %s", buf[1], buf[2]);
@@ -316,8 +234,7 @@ unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
 	height = atoi(buf[2]);
 
 	// Read maxval:
-	do
-	{
+	do {
 		retval_fgets=fgets(buf[0], BUFSIZE, fp);
 	} while (buf[0][0] == '#');
 
@@ -325,8 +242,7 @@ unsigned char* Shape::loadPPM(const char* filename, int& width, int& height)
 	rawData = new unsigned char[width * height * 3];
 	read = fread(rawData, width * height * 3, 1, fp);
 	fclose(fp);
-	if (read != 1)
-	{
+	if (read != 1) {
 		std::cerr << "error parsing ppm file, incomplete data" << std::endl;
 		delete[] rawData;
 		width = 0;
@@ -352,26 +268,25 @@ Matrix4& Shape::getProjectionMatrix() {
 void Shape::setProjectionMatrix() {
 	getProjectionMatrix().identity();
 
-	double fov = 3.141592654*90.0/180.0;
+	float fov = 3.141592654*90.0/180.0;
 	
-	double aspect;
+	float aspect;
 	if (fullscreen) {
 		aspect = 1366.0/768.0;
 	}
 	else {
 		aspect = 512.0/512.0;
 	}
-	double nearv = 0.1;
-	double farv = 1000.0;
+	float nearv = 0.1;
+	float farv = 10000.0;
 	
 	projection = 
-		Matrix4(1.0/(aspect), 0, 0, 0,
-						0, 1.0, 0, 0,
-				0, 0, (nearv+farv)/(nearv-farv), 2*nearv*farv/(nearv-farv),
-				0, 0, -1, 0);
+		Matrix4(
+			1.0/(aspect), 0, 0, 0,
+			0, 1.0, 0, 0,
+			0, 0, (nearv+farv)/(nearv-farv), 2*nearv*farv/(nearv-farv),
+			0, 0, -1, 0);
 	projection.transpose();
-	//projection.print();
-	//getProjectionMatrix().translate(0, 0, -20);
 }
 
 void Shape::setViewportMatrix() {
@@ -427,7 +342,8 @@ void Window::displayCallback(void) {
 	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
 	glMatrixMode(GL_MODELVIEW);
 
-	drawSkyBox();
+	if (!showShadows)
+		Window::drawCWSkyBox();
 
 	switch (shape_key) {
 		case 1: // city scene
@@ -437,11 +353,30 @@ void Window::displayCallback(void) {
 			}
 
 			if (showShadows) {
-				shape.initializeShadows();
-				shape.makeShadows();
+				if (!sun_underground) {
+					shape.initializeShadows();
+					shape.makeShadows();
+				}
+				else {
+					glDisable(GL_LIGHTING);
+					Window::drawCWSkyBox();
+
+					glEnable(GL_LIGHTING);
+					glDisable(GL_LIGHT0);
+					glDisable(GL_LIGHT1);
+					glDisable(GL_LIGHT2);
+					shape.drawShadowWorld();
+					shape.drawSeason();
+				}
 			}
 			else {
+				if (sun_underground)
+					glEnable(GL_LIGHTING);
+				else
+					glDisable(GL_LIGHTING);
+
 				shape.drawShadowWorld();
+				shape.drawSeason();
 			}
 			break;
 		case 2: // house scene
@@ -454,27 +389,39 @@ void Window::displayCallback(void) {
 				shape.makeShadows();
 			}
 			else {
+				if (sun_underground)
+					glEnable(GL_LIGHTING);
+				else
+					glDisable(GL_LIGHTING);
+
 				shape.drawHouse();
 			}
 			break;
 	}
 
 	Matrix4 tmp;
-	tmp = Matrix4(lightPos.getX(), lightPos.getY(), lightPos.getZ(), 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	tmp = Matrix4(
+		lightPos.getX(), lightPos.getY(), lightPos.getZ(), 1, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0, 
+		0, 0, 0, 0
+	);
 	tmp.transpose();
-	//float rad_anglex_change = 3.14*(anglex_change/10)/180.0;
 	tmp.rotateZ(sun_speed);
-	lightPos = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
+	lightPos = Vector3(tmp.get(0,0), tmp.get(0,1), tmp.get(0,2));
 		
 	bool print_lightpos = false;
 	if (toggle_freeze) {
 		sun_speed = 0.0;
 	}
 	else if (speed_up == true) {		
-		sun_speed = 0.001;
+		if (!showShadows)
+			sun_speed = 0.01;
+		else
+			sun_speed = 0.0025;
 	}
 	else {
-		sun_speed = 0.0001;
+		sun_speed = 0.001;
 	}
 	
 	int tmpx;
@@ -508,22 +455,22 @@ void Window::displayCallback(void) {
 		glColor3f(1,1,1);
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
-		glLoadIdentity();
-		gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+			glLoadIdentity();
+			gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
 
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+				glLoadIdentity();
 
-		//Print text
-		glRasterPos2f(-1.0f, 0.8f);
-		for(unsigned int i=0; i<strlen(displayString3); ++i)
-			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString3[i]);
+				//Print text
+				glRasterPos2f(-1.0f, 0.8f);
+				for(unsigned int i=0; i<strlen(displayString3); ++i)
+					glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString3[i]);
 		
-		//reset matrices
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
+				//reset matrices
+				glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
 		glPopMatrix();
 		counter2++;
 		if (counter2 == 100) {
@@ -537,22 +484,22 @@ void Window::displayCallback(void) {
 		glColor3f(1,1,1);
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
-		glLoadIdentity();
-		gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+			glLoadIdentity();
+			gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
 
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+				glLoadIdentity();
 
-		//Print text
-		glRasterPos2f(-1.0f, 0.7f);
-		for(unsigned int i=0; i<strlen(displayString2); ++i)
-			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString2[i]);
+				//Print text
+				glRasterPos2f(-1.0f, 0.7f);
+				for(unsigned int i=0; i<strlen(displayString2); ++i)
+					glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString2[i]);
 		
-		//reset matrices
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
+				//reset matrices
+				glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
 		glPopMatrix();
 		counter3++;
 		if (counter3 == 100) {
@@ -565,22 +512,22 @@ void Window::displayCallback(void) {
 		glColor3f(1,0,0);
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
-		glLoadIdentity();
-		gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+			glLoadIdentity();
+			gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
 
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+				glLoadIdentity();
 
-		//Print text
-		glRasterPos2f(-1.0f, 0.9f);
-		for(unsigned int i=0; i<strlen(displayString); ++i)
-			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString[i]);
+				//Print text
+				glRasterPos2f(-1.0f, 0.9f);
+				for(unsigned int i=0; i<strlen(displayString); ++i)
+					glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString[i]);
 		
-		//reset matrices
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
+				//reset matrices
+				glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
 		glPopMatrix();
 		counter++;
 		if (counter == 100) {
@@ -590,773 +537,349 @@ void Window::displayCallback(void) {
 	}
 
 	// draw sun
+	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glTranslated(lightPos.getX(), lightPos.getY(), lightPos.getZ());
-		glColor3f(1, 1, 0);
-		/*
-		glBegin(GL_POINTS);
-			glVertex3f(lightPos.getX(), lightPos.getY(), lightPos.getZ());
-		glEnd();
-		*/
+		glColor3f(1, (lightPos.getY())/1000.0f+0.25, 0);
 		glutSolidSphere(50, 100, 100);
 	glPopMatrix();
 	
+	if (lightPos.getY() < (0.0f + 50)) {
+		sun_underground = true;
+	}
+	else {
+		sun_underground = false;
+	}
+
 	glFlush();  
 	glutSwapBuffers();
 	//glutPostRedisplay();
 }
 
-void Window::drawDirectionalLight() {
-		glColor3f(1, 1, 0);
-		glTranslated(0, 25, 0);
-		glutSolidSphere(2.5, 100, 100);
-}
-
-void Window::drawPointLight() {
-		glColor3f(10, 10, 10);
-		glTranslated(p_position[0], p_position[1], p_position[2]);
-		glScaled(0.5, 0.5, 0.5);
-		glutSolidSphere(1, 10, 10);
-}
-
-void Window::drawSpotLight() {		
-		glBegin(GL_LINES);
-			glColor3f(10, 10, 10);
-			glVertex3f(s_position[0], s_position[1], s_position[2]);
-			glVertex3f(s_position[0] + 3*s_direction[0], s_position[1] + 3*s_direction[1], s_position[2] + 3*s_direction[2]);
-		glEnd();
-}
-
 void Shape::initializeShadows() {
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glShadeModel(GL_SMOOTH);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+		glMatrixMode(GL_MODELVIEW);
+		//glLoadIdentity(); // TODO
+		glShadeModel(GL_SMOOTH);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+		glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-	//Depth states
-	glClearDepth(1.0f);
-	glDepthFunc(GL_LEQUAL);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_NORMALIZE);
-	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
-	glGenTextures(1, &shadowMapTexture);
-	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
-	glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSizex, shadowMapSizey, 0,
-					GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
-	//glTexSubImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
-	//				GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		//Depth states
+		glClearDepth(1.0f);
+		glDepthFunc(GL_LEQUAL);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glEnable(GL_NORMALIZE);
+		glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+		glGenTextures(1, &shadowMapTexture);
+		glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+		glTexImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSizex, shadowMapSizey, 0,
+						GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+		//glTexSubImage2D(	GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapSize, shadowMapSize, 0,
+		//				GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	
-	GLfloat white[3] = {GLfloat(1), GLfloat(1), GLfloat(1)};
+		GLfloat white[3] = {GLfloat(1), GLfloat(1), GLfloat(1)};
 
-	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
-	glEnable(GL_COLOR_MATERIAL);
+		glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
 	
-	//White specular material color, shininess 16
-	glMaterialfv(GL_FRONT, GL_SPECULAR, white);
-	glMaterialf(GL_FRONT, GL_SHININESS, 16.0f);
-	GLfloat p[16];
+		//White specular material color, shininess 16
+		glMaterialfv(GL_FRONT, GL_SPECULAR, white);
+		glMaterialf(GL_FRONT, GL_SHININESS, 16.0f);
+		GLfloat p[16];
 
-	glPushMatrix();
-		glLoadIdentity();
-		gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
-		glGetFloatv(GL_MODELVIEW_MATRIX, p);
-		cameraProjectionMatrix = Matrix4(
-			p[0],p[1],p[2],p[3],
-			p[4],p[5],p[6],p[7],
-			p[8],p[9],p[10],p[11],
-			p[12],p[13],p[14],p[15]);
-	
-		glLoadIdentity();
-		gluLookAt(e.getX(), e.getY(), e.getZ(),
-					d.getX(), d.getY(), d.getZ(),
-					//0, 0, 0,
-					0, 1, 0);
-				
-					//up.getX(), up.getY(), up.getZ());
-		glGetFloatv(GL_MODELVIEW_MATRIX, p);
+		glPushMatrix();
+			glLoadIdentity();
+			gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 10000);
+
+			glGetFloatv(GL_MODELVIEW_MATRIX, p);
+			cameraProjectionMatrix = Matrix4(
+				p[0],p[1],p[2],p[3],
+				p[4],p[5],p[6],p[7],
+				p[8],p[9],p[10],p[11],
+				p[12],p[13],p[14],p[15]);
+			glLoadIdentity();
+			gluLookAt(
+				e.getX(), e.getY(), e.getZ(),
+				d.getX(), d.getY(), d.getZ(),
+				0, 1, 0
+			);
+
+			glGetFloatv(GL_MODELVIEW_MATRIX, p);
 			cameraViewMatrix = Matrix4(
-			p[0],p[1],p[2],p[3],
-			p[4],p[5],p[6],p[7],
-			p[8],p[9],p[10],p[11],
-			p[12],p[13],p[14],p[15]);
-	
-	
-		glLoadIdentity();
-		gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 1500.0);
-		glGetFloatv(GL_MODELVIEW_MATRIX, p);
-		lightProjectionMatrix = Matrix4(
-			p[0],p[1],p[2],p[3],
-			p[4],p[5],p[6],p[7],
-			p[8],p[9],p[10],p[11],
-			p[12],p[13],p[14],p[15]);
-	
-		glLoadIdentity();
-
-		//gluLookAt(sqrt(0.0), sqrt(10000.0), sqrt(0.0),
-		gluLookAt(lightPos.getX(), lightPos.getY(), lightPos.getZ(),
-					d.getX(), d.getY(), d.getZ(),
-					//0, 0, 0,
-					0, 1, 0);
+				p[0],p[1],p[2],p[3],
+				p[4],p[5],p[6],p[7],
+				p[8],p[9],p[10],p[11],
+				p[12],p[13],p[14],p[15]
+			);
+			glLoadIdentity();
+			gluPerspective(90.0, float(Window::width)/float(Window::height), 0.1, 10000);
+		
+			glGetFloatv(GL_MODELVIEW_MATRIX, p);
+			lightProjectionMatrix = Matrix4(
+				p[0],p[1],p[2],p[3],
+				p[4],p[5],p[6],p[7],
+				p[8],p[9],p[10],p[11],
+				p[12],p[13],p[14],p[15]
+			);
+			glLoadIdentity();
+			gluLookAt(
+				lightPos.getX(), lightPos.getY(), lightPos.getZ(),
+				d.getX(), d.getY(), d.getZ(),
+				0, 1, 0
+			);
 				
-					//up.getX(), up.getY(), up.getZ());
-		glGetFloatv(GL_MODELVIEW_MATRIX, p);
-		lightViewMatrix = Matrix4(
-			p[0],p[1],p[2],p[3],
-			p[4],p[5],p[6],p[7],
-			p[8],p[9],p[10],p[11],
-			p[12],p[13],p[14],p[15]);
-	glPopMatrix();
+			glGetFloatv(GL_MODELVIEW_MATRIX, p);
+			lightViewMatrix = Matrix4(
+				p[0],p[1],p[2],p[3],
+				p[4],p[5],p[6],p[7],
+				p[8],p[9],p[10],p[11],
+				p[12],p[13],p[14],p[15]
+			);
+		glPopMatrix();
 	
-	gluLookAt(
-		e.getX(), e.getY(), e.getZ(), 
-		d.getX(), d.getY(), d.getZ(),
-		0, 1, 0
-	);
+		gluLookAt(
+			e.getX(), e.getY(), e.getZ(), 
+			d.getX(), d.getY(), d.getZ(),
+			0, 1, 0
+		);
 
+		glMatrixMode(GL_MODELVIEW);
 }
 
 void Shape::makeShadows() {
-	//============================================================================
-	//First pass - from light's point of view
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // causes spasms
-	//glClear(GL_DEPTH_BUFFER_BIT);
-	//lightProjectionMatrix.print();
-	//lightViewMatrix.print();
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(lightProjectionMatrix.getGLMatrix());
+		//============================================================================
+		//First pass - from light's point of view
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		//glClear(GL_DEPTH_BUFFER_BIT);
+		//lightProjectionMatrix.print();
+		//lightViewMatrix.print();
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(lightViewMatrix.getGLMatrix());
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrixf(lightProjectionMatrix.getGLMatrix());
 
-	//Use viewport the same size as the shadow map
-	glViewport(0, 0, shadowMapSizex, shadowMapSizey);
+		glMatrixMode(GL_MODELVIEW);
+		glLoadMatrixf(lightViewMatrix.getGLMatrix());
 
-	//Draw back faces into the shadow map
-	glCullFace(GL_FRONT);
+		//Use viewport the same size as the shadow map
+		glViewport(0, 0, shadowMapSizex, shadowMapSizey);
 
-	//Disable color writes, and use flat shading for speed
-	glShadeModel(GL_FLAT);
-	glColorMask(0, 0, 0, 0);
+		//Draw back faces into the shadow map
+		glCullFace(GL_FRONT);
+
+		//Disable color writes, and use flat shading for speed
+		glShadeModel(GL_FLAT);
+		glColorMask(0, 0, 0, 0);
 	
-	//Draw the scene
-	if (shape_key == 1)
-		shape.drawShadowWorld();
-	else
-		shape.drawHouse();
+		//Draw the scene
+		if (shape_key == 1)
+			shape.drawShadowWorld();
+		else
+			shape.drawHouse();
 		
-	//Read the depth buffer into the shadow map texture
-	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
-	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, shadowMapSizex, shadowMapSizey);
+		//Read the depth buffer into the shadow map texture
+		glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, shadowMapSizex, shadowMapSizey);
 
-	//restore states
-	glCullFace(GL_BACK);
-	glShadeModel(GL_SMOOTH);
-	glColorMask(1, 1, 1, 1);
+		//restore states
+		glCullFace(GL_BACK);
+		glShadeModel(GL_SMOOTH);
+		glColorMask(1, 1, 1, 1);
 
 
 
-	//============================================================================
-	//2nd pass - Draw from camera's point of view
-	glClear(GL_DEPTH_BUFFER_BIT);
+		//============================================================================
+		//2nd pass - Draw from camera's point of view
+		glClear(GL_DEPTH_BUFFER_BIT);
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(cameraProjectionMatrix.getGLMatrix());
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrixf(cameraProjectionMatrix.getGLMatrix());
 	
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(cameraViewMatrix.getGLMatrix());
+		glMatrixMode(GL_MODELVIEW);
+		glLoadMatrixf(cameraViewMatrix.getGLMatrix());
 
-	glViewport(0, 0, float(Window::width), float(Window::height));
-	//lightPos.print();
-	GLfloat tmp[3] = {GLfloat(10), GLfloat(10), GLfloat(0)};
-	GLfloat almostwhite[3] = {GLfloat(0.2), GLfloat(0.2), GLfloat(0.2)};
-	GLfloat black[3] = {GLfloat(0), GLfloat(0), GLfloat(0)};
-	GLfloat white[3] = {GLfloat(1), GLfloat(1), GLfloat(1)};
-	//Use dim light to represent shadowed areas
-	glLightfv(GL_LIGHT1, GL_POSITION, tmp);
-	glLightfv(GL_LIGHT1, GL_AMBIENT, almostwhite);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, almostwhite);
-	glLightfv(GL_LIGHT1, GL_SPECULAR, black);
-	//glLightfv(GL_LIGHT1, GL_AMBIENT, white*0.2f);
-	//glLightfv(GL_LIGHT1, GL_DIFFUSE, white*0.2f);
-	//glLightfv(GL_LIGHT1, GL_SPECULAR, black);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT1);
+		glViewport(0, 0, float(Window::width), float(Window::height));
 
-	if (shape_key == 1)
-		shape.drawShadowWorld();
-	else
-		shape.drawHouse();
+		GLfloat tmp[3] = {GLfloat(10), GLfloat(10), GLfloat(0)};
+		GLfloat almostwhite[3] = {GLfloat(0.2), GLfloat(0.2), GLfloat(0.2)};
+		GLfloat black[3] = {GLfloat(0), GLfloat(0), GLfloat(0)};
+		GLfloat white[3] = {GLfloat(1), GLfloat(1), GLfloat(1)};
+		//Use dim light to represent shadowed areas
+		glLightfv(GL_LIGHT1, GL_POSITION, tmp);
+		glLightfv(GL_LIGHT1, GL_AMBIENT, almostwhite);
+		glLightfv(GL_LIGHT1, GL_DIFFUSE, almostwhite);
+		glLightfv(GL_LIGHT1, GL_SPECULAR, black);
 
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT1);
+
+		if (shape_key == 1) {
+			shape.drawShadowWorld();
+		}
+		else
+			shape.drawHouse();
 
 
-	//============================================================================
-	//3rd pass
-	//Draw with bright light
-	//glLightfv(GL_LIGHT1, GL_DIFFUSE, white);
-	//glLightfv(GL_LIGHT1, GL_SPECULAR, white);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, white);
-	glLightfv(GL_LIGHT1, GL_SPECULAR, white);
 
-	//Calculate texture matrix for projection
-	//This matrix takes us from eye space to the light's clip space
-	//It is postmultiplied by the inverse of the current view matrix when specifying texgen
-	Matrix4 biasMatrix(
-								0.5f, 0.0f, 0.0f, 0.0f,
-								0.0f, 0.5f, 0.0f, 0.0f,
-								0.0f, 0.0f, 0.5f, 0.0f,
-								0.5f, 0.5f, 0.5f, 1.0f);	//bias from [-1, 1] to [0, 1]
-	biasMatrix.scale(1.0, 1.0, 1.0);
-	Matrix4 textureMatrix = biasMatrix.multiply(lightProjectionMatrix.multiply(lightViewMatrix));
-	textureMatrix.transpose(); // MAYBE NOT TRANSPOSE
-	GLfloat* tmp2;
+		//============================================================================
+		//3rd pass
+		//Draw with bright light
+		glLightfv(GL_LIGHT1, GL_DIFFUSE, white);
+		glLightfv(GL_LIGHT1, GL_SPECULAR, white);
+
+		//Calculate texture matrix for projection
+		//This matrix takes us from eye space to the light's clip space
+		//It is postmultiplied by the inverse of the current view matrix when specifying texgen
+		Matrix4 biasMatrix(
+									0.5f, 0.0f, 0.0f, 0.0f,
+									0.0f, 0.5f, 0.0f, 0.0f,
+									0.0f, 0.0f, 0.5f, 0.0f,
+									0.5f, 0.5f, 0.5f, 1.0f
+		); //bias from [-1, 1] to [0, 1]
+		biasMatrix.scale(1.0, 1.0, 1.0);
+
+		Matrix4 textureMatrix = biasMatrix.multiply(lightProjectionMatrix.multiply(lightViewMatrix));
+		textureMatrix.transpose();
+		GLfloat* tmp2;
 	
-	tmp2 = textureMatrix.getGLMatrix();
+		tmp2 = textureMatrix.getGLMatrix();
 
-	GLfloat tmp3[4] = {tmp2[0], tmp2[1], tmp2[2], tmp2[3]};
-	GLfloat tmp4[4] = {tmp2[4], tmp2[5], tmp2[6], tmp2[7]};
-	GLfloat tmp5[4] = {tmp2[8], tmp2[9], tmp2[10], tmp2[11]};
-	GLfloat tmp6[4] = {tmp2[12], tmp2[13], tmp2[14], tmp2[15]};
-	//Set up texture coordinate generation.
-
-	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
-	glTexGenfv(GL_S, GL_EYE_PLANE, tmp3);
-	glEnable(GL_TEXTURE_GEN_S);
-
-	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
-	glTexGenfv(GL_T, GL_EYE_PLANE, tmp4);
-	glEnable(GL_TEXTURE_GEN_T);
-
-	glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
-	glTexGenfv(GL_R, GL_EYE_PLANE, tmp5);
-	glEnable(GL_TEXTURE_GEN_R);
-
-	glTexGeni(GL_Q, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
-	glTexGenfv(GL_Q, GL_EYE_PLANE, tmp6);
-	glEnable(GL_TEXTURE_GEN_Q);
-
-	//Bind & enable shadow map texture
-	glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
-	glEnable(GL_TEXTURE_2D);
-
-	//Enable shadow comparison
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE);
-
-	//Shadow comparison should be true (ie not in shadow) if r<=texture
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);
-
-	//Shadow comparison should generate an INTENSITY result
-	glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE_ARB, GL_INTENSITY);
-
-	//Set alpha test to discard foralse comparisons
-	glAlphaFunc(GL_GEQUAL, 0.99f);
-	glEnable(GL_ALPHA_TEST);
-
-	if (shape_key == 1)
-		shape.drawShadowWorld();
-	else
-		shape.drawHouse();
-
-	//Disable textures and texgen
-	glDisable(GL_TEXTURE_2D);
-
-	glDisable(GL_TEXTURE_GEN_S);
-	glDisable(GL_TEXTURE_GEN_T);
-	glDisable(GL_TEXTURE_GEN_R);
-	glDisable(GL_TEXTURE_GEN_Q);
-
-	//Restore other states
-	glDisable(GL_LIGHTING);
-	glDisable(GL_ALPHA_TEST);
-	glDeleteTextures(1, &shadowMapTexture);
-
-
-	//Update frames per second counter
-	//fpsCounter.Update();
-
-	//Print fps
-	static char fpsString[32];
-	//sprintf(fpsString, "%.2f", fpsCounter.GetFps());
+		GLfloat tmp3[4] = {tmp2[0], tmp2[1], tmp2[2], tmp2[3]};
+		GLfloat tmp4[4] = {tmp2[4], tmp2[5], tmp2[6], tmp2[7]};
+		GLfloat tmp5[4] = {tmp2[8], tmp2[9], tmp2[10], tmp2[11]};
+		GLfloat tmp6[4] = {tmp2[12], tmp2[13], tmp2[14], tmp2[15]};
 	
-	//Set matrices for ortho
-	
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+		//Set up texture coordinate generation.
+		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+		glTexGenfv(GL_S, GL_EYE_PLANE, tmp3);
+		glEnable(GL_TEXTURE_GEN_S);
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-	
-	//Print text
-	//glRasterPos2f(-1.0f, 0.9f);
-	//for(unsigned int i=0; i<strlen(fpsString); ++i)
-	//	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, fpsString[i]);
+		glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+		glTexGenfv(GL_T, GL_EYE_PLANE, tmp4);
+		glEnable(GL_TEXTURE_GEN_T);
 
-	//reset matrices
-	
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+		glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+		glTexGenfv(GL_R, GL_EYE_PLANE, tmp5);
+		glEnable(GL_TEXTURE_GEN_R);
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(shape.getModelViewMatrix().getGLMatrix());
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(shape.getProjectionMatrix().getGLMatrix());
+		glTexGeni(GL_Q, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+		glTexGenfv(GL_Q, GL_EYE_PLANE, tmp6);
+		glEnable(GL_TEXTURE_GEN_Q);
+
+		//Bind & enable shadow map texture
+		glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+		glEnable(GL_TEXTURE_2D);
+
+		//Enable shadow comparison
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE);
+
+		//Shadow comparison should be true (ie not in shadow) if r<=texture
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);
+
+		//Shadow comparison should generate an INTENSITY result
+		glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE_ARB, GL_INTENSITY);
+
+		//Set alpha test to discard foralse comparisons
+		glAlphaFunc(GL_GEQUAL, 0.99f);
+		glEnable(GL_ALPHA_TEST);
+
+		if (shape_key == 1) {
+			shape.drawShadowWorld();
+		}
+		else
+			shape.drawHouse();
+
+		//Disable textures and texgen
+		glDisable(GL_TEXTURE_2D);
+
+		glDisable(GL_TEXTURE_GEN_S);
+		glDisable(GL_TEXTURE_GEN_T);
+		glDisable(GL_TEXTURE_GEN_R);
+		glDisable(GL_TEXTURE_GEN_Q);
+
+		//Restore other states
+		glDisable(GL_LIGHTING);
+		glDisable(GL_ALPHA_TEST);
+		glDeleteTextures(1, &shadowMapTexture);
+
+		/*
+		//Set matrices for ortho
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+			glLoadIdentity();
+			gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+				glLoadIdentity();
 	
-	//glFinish();
-	//glutSwapBuffers();
-	//glutPostRedisplay();
+				//reset matrices
+				glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+		*/
+
+		glMatrixMode(GL_MODELVIEW);
 }
 
 void Shape::drawShadowWorld() {
 	Window::drawShape(city_nVerts, city_vertices, city_normals, city_texcoords);
-	shape.drawSeason();
 }
 
 void Window::drawCube() {
-		glBegin(GL_QUADS);
-			// Draw front face:
-			glColor3f(1, 0, 0);
-			glNormal3f(0.0, 0.0, 1.0);   
-			glVertex3f(-1.0,  1.0,  1.0);
-			glVertex3f( 1.0,  1.0,  1.0);
-			glVertex3f( 1.0, -1.0,  1.0);
-			glVertex3f(-1.0, -1.0,  1.0);
-		
-			// Draw left side:
-			glColor3f(0, 1, 0);
-			glNormal3f(-1.0, 0.0, 0.0);
-			glVertex3f(-1.0,  1.0,  1.0);
-			glVertex3f(-1.0,  1.0, -1.0);
-			glVertex3f(-1.0, -1.0, -1.0);
-			glVertex3f(-1.0, -1.0,  1.0);
-		
-			// Draw right side:
-			glColor3f(0, 0, 1);
-			glNormal3f(1.0, 0.0, 0.0);
-			glVertex3f( 1.0,  1.0,  1.0);
-			glVertex3f( 1.0,  1.0, -1.0);
-			glVertex3f( 1.0, -1.0, -1.0);
-			glVertex3f( 1.0, -1.0,  1.0);
-	
-			// Draw back face:
-			glColor3f(1, 0, 1);
-			glNormal3f(0.0, 0.0, -1.0);
-			glVertex3f(-1.0,  1.0, -1.0);
-			glVertex3f( 1.0,  1.0, -1.0);
-			glVertex3f( 1.0, -1.0, -1.0);
-			glVertex3f(-1.0, -1.0, -1.0);
-	
-			// Draw top side:
-			glColor3f(1, 1, 0);
-			glNormal3f(0.0, 1.0, 0.0);
-			glVertex3f(-1.0,  1.0,  1.0);
-			glVertex3f( 1.0,  1.0,  1.0);
-			glVertex3f( 1.0,  1.0, -1.0);
-			glVertex3f(-1.0,  1.0, -1.0);
-	
-			// Draw bottom side:
-			glColor3f(0, 1, 1);
-			glNormal3f(0.0, -1.0, 0.0);
-			glVertex3f(-1.0, -1.0, -1.0);
-			glVertex3f( 1.0, -1.0, -1.0);
-			glVertex3f( 1.0, -1.0,  1.0);
-			glVertex3f(-1.0, -1.0,  1.0);
-		glEnd();
+	glBegin(GL_QUADS); // Begin drawing the color cube with 6 quads
+		// Top face (y = 1.0f)
+		// Define vertices in counter-clockwise (CCW) order with normal pointing out
+		glColor3f(0.0f, 1.0f, 0.0f);     // Green
+		glVertex3f( 1.0f, 1.0f, -1.0f);
+		glVertex3f(-1.0f, 1.0f, -1.0f);
+		glVertex3f(-1.0f, 1.0f,  1.0f);
+		glVertex3f( 1.0f, 1.0f,  1.0f);
+ 
+		// Bottom face (y = -1.0f)
+		glColor3f(1.0f, 0.5f, 0.0f);     // Orange
+		glVertex3f( 1.0f, -1.0f,  1.0f);
+		glVertex3f(-1.0f, -1.0f,  1.0f);
+		glVertex3f(-1.0f, -1.0f, -1.0f);
+		glVertex3f( 1.0f, -1.0f, -1.0f);
+ 
+		// Front face  (z = 1.0f)
+		glColor3f(1.0f, 0.0f, 0.0f);     // Red
+		glVertex3f( 1.0f,  1.0f, 1.0f);
+		glVertex3f(-1.0f,  1.0f, 1.0f);
+		glVertex3f(-1.0f, -1.0f, 1.0f);
+		glVertex3f( 1.0f, -1.0f, 1.0f);
+ 
+		// Back face (z = -1.0f)
+		glColor3f(1.0f, 1.0f, 0.0f);     // Yellow
+		glVertex3f( 1.0f, -1.0f, -1.0f);
+		glVertex3f(-1.0f, -1.0f, -1.0f);
+		glVertex3f(-1.0f,  1.0f, -1.0f);
+		glVertex3f( 1.0f,  1.0f, -1.0f);
+ 
+		// Left face (x = -1.0f)
+		glColor3f(0.0f, 0.0f, 1.0f);     // Blue
+		glVertex3f(-1.0f,  1.0f,  1.0f);
+		glVertex3f(-1.0f,  1.0f, -1.0f);
+		glVertex3f(-1.0f, -1.0f, -1.0f);
+		glVertex3f(-1.0f, -1.0f,  1.0f);
+ 
+		// Right face (x = 1.0f)
+		glColor3f(1.0f, 0.0f, 1.0f);     // Magenta
+		glVertex3f(1.0f,  1.0f, -1.0f);
+		glVertex3f(1.0f,  1.0f,  1.0f);
+		glVertex3f(1.0f, -1.0f,  1.0f);
+		glVertex3f(1.0f, -1.0f, -1.0f);
+   glEnd(); // End of drawing color-cube
 }
 
-
-
-void Shape::drawRobot() {
-	//unsigned long long Int64 = 0;
-		//clock_t Start = clock();
-	glMatrixMode(GL_MODELVIEW);
-	glColor3f(0,1,0);
-
-	for (int j=0; j<army_size; j++) {
-		for (int k=0; k<army_size; k++) {
-			
-			Matrix4 i;
-			i.identity();
-			robot[j][k] = &MatrixTransform(i);
-
-			// head
-			Matrix4 s = Matrix4(i);
-			s.scale(0.5,0.5,0.5);
-			s.rotateX(2*spin_leftleg);
-			MatrixTransform head = MatrixTransform(s);
-			head.addChild(&Sphere());
-
-			// torso
-			Matrix4 t = Matrix4(i);
-			t.scale(1.5,2,1);
-			t.translate(0,-1.5,0);
-			t.rotateY(0.5*spin_leftleg);
-			MatrixTransform torso = MatrixTransform(t);
-			torso.addChild(&Cube());
-
-			// left arm
-			Matrix4 la = Matrix4(i);
-			la.rotateZ(3.14/4);
-			la.translate(1,-0.5,0);
-			la.rotateX(spin_leftarm);
-			MatrixTransform leftarm = MatrixTransform(la);
-
-			Matrix4 ula = Matrix4(i);
-			ula.translate(-1,-0.5,0);
-			ula.scale(0.5,1.5,0.5);
-			MatrixTransform upper_leftarm = MatrixTransform(ula);
-			upper_leftarm.addChild(&Cube());
-
-			Matrix4 lla = Matrix4(i);
-			lla.rotateX(3.14/2);
-			lla.scale(0.25,0.25,0.25);
-			lla.translate(-0.5,-1.5,0);
-			MatrixTransform lower_leftarm = MatrixTransform(lla);
-			lower_leftarm.addChild(&Cone());
-	
-			leftarm.addChild(&upper_leftarm);
-			leftarm.addChild(&lower_leftarm);
-
-			// right arm
-			Matrix4 ra = Matrix4(i);
-			ra.rotateZ(-3.14/4);
-			ra.translate(-1,-0.5,0);
-			ra.rotateX(spin_rightarm);
-			MatrixTransform rightarm = MatrixTransform(ra);
-	
-			Matrix4 ura = Matrix4(i);
-			ura.translate(1,-0.5,0);
-			ura.scale(0.5,1.5,0.5);
-			MatrixTransform upper_rightarm = MatrixTransform(ura);
-			upper_rightarm.addChild(&Cube());
-
-			Matrix4 lra = Matrix4(i);
-			lra.rotateX(3.14/2);
-			lra.scale(0.25,0.25,0.25);
-			lra.translate(0.5,-1.5,0);
-			MatrixTransform lower_rightarm = MatrixTransform(lra);
-			lower_rightarm.addChild(&Cone());
-	
-			rightarm.addChild(&upper_rightarm);
-			rightarm.addChild(&lower_rightarm);
-
-			// left leg
-			Matrix4 ll = Matrix4(i);
-			ll.scale(0.5,1.5,0.5);
-			ll.translate(0,-3,0);
-			ll.rotateWindowX(spin_leftleg);
-			MatrixTransform leftleg = MatrixTransform(ll);
-
-			Matrix4 ull = Matrix4(i);
-			ull.translate(1,0,0);
-			MatrixTransform upper_leftleg = MatrixTransform(ull);
-			upper_leftleg.addChild(&Cube());
-
-			Matrix4 lll = Matrix4(i);
-			lll.scale(1,0.1,2);
-			lll.translate(1,-0.5,0.5);
-			MatrixTransform lower_leftleg = MatrixTransform(lll);
-			lower_leftleg.addChild(&Cube());
-	
-			leftleg.addChild(&upper_leftleg);
-			leftleg.addChild(&lower_leftleg);
-
-			// right leg
-			Matrix4 rl = Matrix4(i);
-			rl.scale(0.5,1.5,0.5);
-			rl.translate(0,-3,0);
-			rl.rotateWindowX(spin_rightleg);
-			MatrixTransform rightleg = MatrixTransform(rl);
-
-			Matrix4 url = Matrix4(i);
-			url.translate(-1,0,0);
-			MatrixTransform upper_rightleg = MatrixTransform(url);
-			upper_rightleg.addChild(&Cube());
-
-			Matrix4 lrl = Matrix4(i);
-			lrl.scale(1,0.1,2);
-			lrl.translate(-1,-0.5,0.5);
-			MatrixTransform lower_rightleg = MatrixTransform(lrl);
-			lower_rightleg.addChild(&Cube());
-	
-			rightleg.addChild(&upper_rightleg);
-			rightleg.addChild(&lower_rightleg);
-
-			// add to robot
-			robot[j][k]->addChild(&head);
-			robot[j][k]->addChild(&torso);
-			robot[j][k]->addChild(&leftarm);
-			robot[j][k]->addChild(&rightarm);
-			robot[j][k]->addChild(&leftleg);
-			robot[j][k]->addChild(&rightleg);
-
-			la.rotateX(-3.14/2);
-			leftarm.setTransformationMatrix(la);
-
-			i.translate(-5*j,0,-5*k);
-			robot[j][k]->setTransformationMatrix(i);
-			robot[j][k]->draw(shape.modelview);
-			//robot[j][k]->setBoundingBox(robot[j][k]->x_min, robot[j][k]->x_max, robot[j][k]->y_min, robot[j][k]->y_max, robot[j][k]->z_min, robot[j][k]->z_max);
-			//cout << "miliseconds elapsed for rendering(without culling) " <<  clock() - Start << '\n';
-		}
-	}
-
-}
-
-void Shape::drawRobot2() {
-
-	//unsigned long long Int64 = 0;
-		//clock_t Start = clock();
-	glMatrixMode(GL_MODELVIEW);
-	glColor3f(0,1,0);
-
-	for (int j=0; j<army_size; j++) {
-		for (int k=0; k<army_size; k++) {
-			
-			Matrix4 i;
-			i.identity();
-			robot[j][k] = &MatrixTransform(i);
-
-			// head
-			Matrix4 s = Matrix4(i);
-			s.scale(0.5,0.5,0.5);
-			s.rotateX(2*spin_leftleg);
-			MatrixTransform head = MatrixTransform(s);
-			head.addChild(&Sphere());
-
-			// torso
-			Matrix4 t = Matrix4(i);
-			t.scale(1.5,2,1);
-			t.translate(0,-1.5,0);
-			t.rotateY(0.5*spin_leftleg);
-			MatrixTransform torso = MatrixTransform(t);
-			torso.addChild(&Cube());
-
-			// left arm
-			Matrix4 la = Matrix4(i);
-			la.rotateZ(3.14/4);
-			la.translate(1,-0.5,0);
-			la.rotateX(spin_leftarm);
-			MatrixTransform leftarm = MatrixTransform(la);
-
-			Matrix4 ula = Matrix4(i);
-			ula.translate(-1,-0.5,0);
-			ula.scale(0.5,1.5,0.5);
-			MatrixTransform upper_leftarm = MatrixTransform(ula);
-			upper_leftarm.addChild(&Cube());
-
-			Matrix4 lla = Matrix4(i);
-			lla.rotateX(3.14/2);
-			lla.scale(0.25,0.25,0.25);
-			lla.translate(-0.5,-1.5,0);
-			MatrixTransform lower_leftarm = MatrixTransform(lla);
-			lower_leftarm.addChild(&Cone());
-	
-			leftarm.addChild(&upper_leftarm);
-			leftarm.addChild(&lower_leftarm);
-
-			// right arm
-			Matrix4 ra = Matrix4(i);
-			ra.rotateZ(-3.14/4);
-			ra.translate(-1,-0.5,0);
-			ra.rotateX(spin_rightarm);
-			MatrixTransform rightarm = MatrixTransform(ra);
-	
-			Matrix4 ura = Matrix4(i);
-			ura.translate(1,-0.5,0);
-			ura.scale(0.5,1.5,0.5);
-			MatrixTransform upper_rightarm = MatrixTransform(ura);
-			upper_rightarm.addChild(&Cube());
-
-			Matrix4 lra = Matrix4(i);
-			lra.rotateX(3.14/2);
-			lra.scale(0.25,0.25,0.25);
-			lra.translate(0.5,-1.5,0);
-			MatrixTransform lower_rightarm = MatrixTransform(lra);
-			lower_rightarm.addChild(&Cone());
-	
-			rightarm.addChild(&upper_rightarm);
-			rightarm.addChild(&lower_rightarm);
-
-			// left leg
-			Matrix4 ll = Matrix4(i);
-			ll.scale(0.5,1.5,0.5);
-			ll.translate(0,-3,0);
-			ll.rotateWindowX(spin_leftleg);
-			MatrixTransform leftleg = MatrixTransform(ll);
-
-			Matrix4 ull = Matrix4(i);
-			ull.translate(1,0,0);
-			MatrixTransform upper_leftleg = MatrixTransform(ull);
-			upper_leftleg.addChild(&Cube());
-
-			Matrix4 lll = Matrix4(i);
-			lll.scale(1,0.1,2);
-			lll.translate(1,-0.5,0.5);
-			MatrixTransform lower_leftleg = MatrixTransform(lll);
-			lower_leftleg.addChild(&Cube());
-	
-			leftleg.addChild(&upper_leftleg);
-			leftleg.addChild(&lower_leftleg);
-
-			// right leg
-			Matrix4 rl = Matrix4(i);
-			rl.scale(0.5,1.5,0.5);
-			rl.translate(0,-3,0);
-			rl.rotateWindowX(spin_rightleg);
-			MatrixTransform rightleg = MatrixTransform(rl);
-
-			Matrix4 url = Matrix4(i);
-			url.translate(-1,0,0);
-			MatrixTransform upper_rightleg = MatrixTransform(url);
-			upper_rightleg.addChild(&Cube());
-
-			Matrix4 lrl = Matrix4(i);
-			lrl.scale(1,0.1,2);
-			lrl.translate(-1,-0.5,0.5);
-			MatrixTransform lower_rightleg = MatrixTransform(lrl);
-			lower_rightleg.addChild(&Cube());
-	
-			rightleg.addChild(&upper_rightleg);
-			rightleg.addChild(&lower_rightleg);
-
-			// add to robot
-			robot[j][k]->addChild(&head);
-			robot[j][k]->addChild(&torso);
-			robot[j][k]->addChild(&leftarm);
-			robot[j][k]->addChild(&rightarm);
-			robot[j][k]->addChild(&leftleg);
-			robot[j][k]->addChild(&rightleg);
-
-			la.rotateX(-3.14/2);
-			leftarm.setTransformationMatrix(la);
-
-			i.translate(-5*j,0,-5*k);
-			robot[j][k]->setTransformationMatrix(i);
-			robot[j][k]->draw2(shape.modelview);
-			//robot[j][k]->setBoundingBox(robot[j][k]->x_min, robot[j][k]->x_max, robot[j][k]->y_min, robot[j][k]->y_max, robot[j][k]->z_min, robot[j][k]->z_max);
-			//cout << "miliseconds elapsed for rendering(with culling) " <<  clock() - Start << '\n';
-		}
-
-	}
-}
-
-void Shape::nearestNeighbor(Vector4 vec1, Vector4* arr1)
-{
-	Vector4 *arr2 = arr1;
-	Vector4 tmp1;
-	Vector4 tmp2;
-	Vector4 tmp3;
-	float min_dist = threshold;
-	int min_index = -1;
-	for (int k = 0; k < 7; k++)
-	{
-		arr1[k];
-		arr1[k].setY(Window::height-arr1[k].getY()); 
-		//cout << "index: " << k << ": \n";
-		//arr1[k].print();
-		
-	}
-	for (int i = 0; i < 7; i++)
-	{
-
-		tmp1 = vec1;
-		tmp2 = arr1[i];
-		tmp1.subtract(tmp2);
-		if (tmp1.magnitude() < min_dist)
-		{
-			min_dist = tmp1.magnitude();
-			min_index = i;
-		}
-		
-	}
-	//cout << "min_dist: " << min_dist << '\n';
-	selected_point = min_index;
-
-}
-
-void Shape::loadData()
-{
-	/*
-		// put code to load data model here
-	ObjReader::readObj("dragon_smooth.obj", dragon_nVerts, &dragon_vertices, &dragon_normals, &dragon_texcoords, dragon_nIndices, &dragon_indices);
-	ObjReader::readObj("bunny_n.obj", bunny_nVerts, &bunny_vertices, &bunny_normals, &bunny_texcoords, bunny_nIndices, &bunny_indices);
-	ObjReader::readObj("sandal.obj", sandal_nVerts, &sandal_vertices, &sandal_normals, &sandal_texcoords, sandal_nIndices, &sandal_indices);
-	*/
-
+void Shape::loadData() {
 	ObjReader::readObj("city.obj", city_nVerts, &city_vertices, &city_normals, &city_texcoords, city_nIndices, &city_indices);
-}
-
-void Shape::calculateStuff(int nVerts, float *vertices) {
-	float max_arr[3] = {-1000, -1000, -1000};
-	float min_arr[3] = {1000, 1000, 1000};
-
-	for (int i = 0; i < nVerts/3; i++) {
-		for (int v = 0; v < 3; v++) {
-			if (vertices[9*i+3*v] < min_arr[0]) {
-				min_arr[0] = vertices[9*i+3*v];
-			}
-			if (vertices[9*i+3*v] > max_arr[0]) {
-				max_arr[0] = vertices[9*i+3*v];
-			}
-			if (vertices[(9*i)+(3*v)+1] < min_arr[1]) {
-				min_arr[1] = vertices[(9*i)+(3*v)+1];
-			}
-			if (vertices[(9*i)+(3*v)+1] > max_arr[1]) {
-				max_arr[1] = vertices[(9*i)+(3*v)+1];
-			}
-			if (vertices[(9*i)+(3*v)+2] < min_arr[2]) {
-				min_arr[2] = vertices[(9*i)+(3*v)+2];
-			}
-			if (vertices[(9*i)+(3*v)+2] > max_arr[2]) {
-				max_arr[2] = vertices[(9*i)+(3*v)+2];
-			}
-
-		}
-	}
-
-	shape.x = 0.5*(max_arr[0] + min_arr[0]);
-	shape.y = 0.5*(max_arr[1] + min_arr[1]);
-	shape.z = 0.5*(max_arr[2] + min_arr[2]);
-
-	shape.translation.identity();
-	shape.translation.m[0][3] = -shape.x;
-	shape.translation.m[1][3] = -shape.y;
-	shape.translation.m[2][3] = -shape.z;
-
-	cout << "minimum values: " << min_arr[0] << ", " << min_arr[1] << ", " << min_arr[2] << "\n";
-	cout << "maximum values: " << max_arr[0] << ", " << max_arr[1] << ", " << max_arr[2] << "\n\n";
-
-	cout << "center: (" << shape.x << ", " << shape.y << ", " << shape.z << ")\n\n";
-	
-	float x_diff = max_arr[0]-min_arr[0];
-	float y_diff = max_arr[1]-min_arr[1];
-	float z_diff = max_arr[2]-min_arr[2];
-
-	float max1 = max(x_diff, y_diff);
-	max1 = max(max1, z_diff);
-
-	scaling_x = 28/max1;
-	scaling_y = 28/max1;
-	scaling_z = 28/max1;
-
-	shape.scale.identity();
-	shape.scale.m[0][0] = scaling_x;
-	shape.scale.m[1][1] = scaling_y;
-	shape.scale.m[2][2] = scaling_z;
-
-	cout << "scaling factor : " << scaling_x << ", " << scaling_y <<  ", " << scaling_z <<"\n\n";
-
 }
 
 void Window::drawShape(int nVerts, float *vertices, float *normals, float *texcoords) {
@@ -1453,7 +976,6 @@ void Window::drawShape(int nVerts, float *vertices, float *normals, float *texco
 			k++;
 		}
 	}
-	//cout << k << '\n';
 	glEnd();
 
 	glPopMatrix();
@@ -1462,12 +984,8 @@ void Window::drawShape(int nVerts, float *vertices, float *normals, float *texco
 Shape::Shape() {
 	shape.getModelMatrix().identity();
 
-	//shape.getModelMatrix() = shape.getModelMatrix().multiply(shape.setScaleMatrix(8.0));
-
 	shape.getCameraMatrix().identity();
 	shape.getCameraMatrix() = Matrix4::createCameraMatrix(e, d, up);
-	//shape.getCameraMatrix() = Matrix4::createCameraMatrix(Vector3(0, 10, 10), Vector3(0, 0, 0), Vector3(0, 1, 0));
-	//shape.getCameraMatrix() = Matrix4::createCameraMatrix(Vector3(0, 0, 10), Vector3(0, 0, 0), Vector3(0, 1, 0));
 	
 	shape.updateModelViewMatrix();
 
@@ -1489,8 +1007,7 @@ Matrix4& Shape::getCameraMatrix() {
 }
 
 int main(int argc, char *argv[]) {
-	//srand(1);
-	srand(time(NULL));
+	srand(time(NULL)); // set pseudo random seed
 
 	float specular[]  = {1.0, 1.0, 1.0, 1.0};
 	float shininess[] = {100.0};
@@ -1526,56 +1043,13 @@ int main(int argc, char *argv[]) {
 	glShadeModel(GL_SMOOTH);             	      // set shading to smooth
 
 	glMatrixMode(GL_PROJECTION);
-	gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 1000);
+	gluPerspective(90, float(Window::width)/float(Window::height), 0.1, 10000);
 
 	// Generate material properties:
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
-
-	if (TURN_LIGHTS_ON) {
-		//Generate light source:
-		glEnable(GL_LIGHTING);
-	
-		GLfloat light_ambient[] = { 0.0, 0.0, 0.0, 1.0 };
-
-		GLfloat light_diffuse_d[] = { 1.0, 1.0, 1.0, 1.0 };
-		GLfloat light_specular_d[] = { 1.0, 1.0, 1.0, 1.0 };
-
-		GLfloat light_diffuse_p[] = { 0.0, 1.0, 0.0, 1.0 };
-		GLfloat light_specular_p[] = { 0.0, 1.0, 0.0, 1.0 };
-
-		GLfloat light_diffuse_s[] = { 0.0, 0.0, 1.0, 1.0 };
-		GLfloat light_specular_s[] = { 0.0, 0.0, 1.0, 1.0 };
-		
-		shape.directional = Light(0);
-		shape.directional.setPosition(d_position);
-		shape.directional.setAmbient(light_ambient);
-		shape.directional.setDiffuse(light_diffuse_d);
-		shape.directional.setSpecular(light_specular_d);
-
-		shape.point = Light(1);
-		shape.point.setPosition(p_position);
-		shape.point.setAmbient(light_ambient);
-		shape.point.setDiffuse(light_diffuse_p);
-		shape.point.setSpecular(light_specular_p);
-
-		shape.spot = Light(2);
-		shape.spot.setPosition(s_position);
-		shape.spot.setAmbient(light_ambient);
-		shape.spot.setDiffuse(light_diffuse_s);
-		shape.spot.setSpecular(light_specular_s);
-		shape.spot.setSpotCutoff(5);
-		shape.spot.setSpotDirection(s_direction);
-
-		if (!toggle1)
-			shape.directional.disable();
-		if (!toggle2)
-			shape.point.disable();
-		if (!toggle3)
-			shape.spot.disable();
-	}
 
 	// Install callback functions:
 	glutDisplayFunc(Window::displayCallback);
@@ -1685,13 +1159,23 @@ void Shape::updateFire() {
 			float neg_vz = -0.01*(rand()%100+1);
 			bool pick_pos_vz = rand()%2;
 
-			vx = 0.1* ((pick_pos_vx) ? pos_vx : neg_vx);
-			vy = 0.1*(0.01*(rand()%100+1));
-			vz = 0.1* ((pick_pos_vz) ? pos_vz : neg_vz);
+			if (!showShadows) {
+				vx = 0.1* ((pick_pos_vx) ? pos_vx : neg_vx);
+				vy = 0.5*(0.01*(rand()%100+1));
+				vz = 0.1* ((pick_pos_vz) ? pos_vz : neg_vz);
+			}
+			else {
+				vx = 0.1* ((pick_pos_vx) ? pos_vx : neg_vx);
+        vy = 0.1*(0.01*(rand()%100+1));
+				vz = 0.1* ((pick_pos_vz) ? pos_vz : neg_vz);
+			}
 
 			fire[i].pos = Vector3(x,y,z);
 			fire[i].vel = Vector3(vx,vy,vz);
-			fire[i].age += 0.2;
+			if (!showShadows)
+				fire[i].age += 1;
+			else
+				fire[i].age += 0.2;
 		}
 	}
 }
@@ -1747,13 +1231,22 @@ void Shape::updateSnow() {
 			float neg_vz = -0.01*(rand()%50+1);
 			bool pick_pos_vz = rand()%2;
 
-			vx = 0.1*((pick_pos_vx) ? pos_vx : neg_vx);
-			vy = -0.1*(0.01*(rand()%50+1));
-			vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
-
+			if (!showShadows) {
+				vx = 0.25*((pick_pos_vx) ? pos_vx : neg_vx);
+				vy = -0.5*(0.01*(rand()%50+1));
+				vz = 0.25*((pick_pos_vz) ? pos_vz : neg_vz);
+			}
+			else {
+				vx = 0.1*((pick_pos_vx) ? pos_vx : neg_vx);
+        vy = -0.1*(0.01*(rand()%50+1));
+        vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
+			}
 			snow[i].pos = Vector3(x,y,z);
 			snow[i].vel = Vector3(vx,vy,vz);
-			snow[i].age += 0.01;
+			if (!showShadows)
+				snow[i].age += 0.1;
+			else
+				snow[i].age += 0.01;
 		}
 	}
 }
@@ -1798,7 +1291,10 @@ void Shape::drawSnow() {
 void Shape::initializeRain() {
 
 	for (int i=0; i<num_rain; i++) {
-		rain[i].vel = Vector3(0,-0.05,0);
+		if (!showShadows)
+			rain[i].vel = Vector3(0,-0.5,0);
+		else
+			rain[i].vel = Vector3(0,-0.05,0);
 		rain[i].age = rand()%100+1;
 		rain[i].lifetime = rand()%100+1;
 		rain[i].pos = Vector3(0.1*(rand()%201-100),10-10*(rain[i].age/rain[i].lifetime),0.1*(rand()%201-100));
@@ -1810,7 +1306,10 @@ void Shape::updateRain() {
 	for (int i=0; i<num_rain; i++) {
 		if (rain[i].age > rain[i].lifetime) {
 			rain[i].pos = Vector3(0.1*(rand()%201-100),10,0.1*(rand()%201-100));
-			rain[i].vel = Vector3(0,-0.05,0);
+			if (!showShadows)
+				rain[i].vel = Vector3(0,-0.5,0);
+			else
+				rain[i].vel = Vector3(0,-0.05,0);
 			rain[i].age = 0;
 		}
 		else {
@@ -1823,7 +1322,7 @@ void Shape::updateRain() {
 			y += vy;
 
 			rain[i].pos = Vector3(x,y,z);
-			rain[i].age += 0.01;
+			rain[i].age += 0.1;
 		}
 	}
 }
@@ -1908,13 +1407,23 @@ void Shape::updateLeaves() {
 			float neg_vz = -0.01*(rand()%50+1);
 			bool pick_pos_vz = rand()%2;
 
-			vx = 0.1*(0.01*(rand()%50+1));
-			vy = 0.1*((pick_pos_vy) ? pos_vy : neg_vy);
-			vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
+			if (!showShadows) {
+				vx = 1*(0.01*(rand()%50+1));
+				vy = 0.5*((pick_pos_vy) ? pos_vy : neg_vy);
+				vz = 0.5*((pick_pos_vz) ? pos_vz : neg_vz);
+			}
+			else {
+				vx = 0.1*(0.01*(rand()%50+1));
+        vy = 0.1*((pick_pos_vy) ? pos_vy : neg_vy);
+        vz = 0.1*((pick_pos_vz) ? pos_vz : neg_vz);
+			}
 
 			leaves[i].pos = Vector3(x,y,z);
 			leaves[i].vel = Vector3(vx,vy,vz);
-			leaves[i].age += 0.05;
+			if (!showShadows)
+				leaves[i].age += 0.5;
+			else
+				leaves[i].age += 0.05;
 		}
 	}
 }
@@ -1956,77 +1465,172 @@ void Shape::drawLeaves() {
 	glPopMatrix();
 }
 
-void Window::drawSkyBox() {
-		glPushMatrix();
+void Window::drawCWSkyBox() {
+	glPushMatrix();
 		/*
 		// code to make skybox move with camera
 		GLfloat curr[16];
 		glGetFloatv(GL_MODELVIEW_MATRIX, curr);
+		Matrix4 mv = Matrix4(
 			curr[0], curr[1], curr[2], curr[3],
 			curr[4], curr[5], curr[6], curr[7],
 			curr[8], curr[9], curr[10], curr[11],
 			curr[12], curr[13], curr[14], curr[15]
 		);
-		Matrix4 cam_inv = Matrix4::createCameraMatrix(e, d, up);
-		cam_inv.inverse();
-		follow_cam = follow_cam.multiply(shape.getCameraMatrix());
+		mv.identity();
+
+		Matrix4 cam =  shape.getCameraMatrix();
+		Matrix4 follow_cam = mv.multiply(cam);
+
+		mv.set(0,3,follow_cam.get(0,3));
+		mv.set(1,3,follow_cam.get(1,3));
+		mv.set(2,3,follow_cam.get(2,3));
+
+		follow_cam.print();
 		glLoadMatrixf(follow_cam.getGLMatrix());
 		*/
 		
 		glDisable(GL_DEPTH_TEST);
+		glDepthMask(GL_FALSE);
+		
 		glDisable(GL_LIGHTING);
 
 		glBegin(GL_QUADS);
-			// Draw front face:
-			glColor3f(0,0,1);
-			glNormal3f(0.0, 0.0, 5000.0);   
-			glVertex3f(-5000.0,  5000.0,  5000.0);
-			glVertex3f( 5000.0,  5000.0,  5000.0);
-			glVertex3f( 5000.0, -5000.0,  5000.0);
-			glVertex3f(-5000.0, -5000.0,  5000.0);
-		
-			// Draw left side:
-			glNormal3f(-5000.0, 0.0, 0.0);
-			glVertex3f(-5000.0,  5000.0,  5000.0);
-			glVertex3f(-5000.0,  5000.0, -5000.0);
-			glVertex3f(-5000.0, -5000.0, -5000.0);
-			glVertex3f(-5000.0, -5000.0,  5000.0);
-		
-			// Draw right side:
-			glNormal3f(5000.0, 0.0, 0.0);
-			glVertex3f( 5000.0,  5000.0,  5000.0);
-			glVertex3f( 5000.0,  5000.0, -5000.0);
-			glVertex3f( 5000.0, -5000.0, -5000.0);
-			glVertex3f( 5000.0, -5000.0,  5000.0);
-	
-			// Draw back face:
-			glNormal3f(0.0, 0.0, -5000.0);
-			glVertex3f(-5000.0,  5000.0, -5000.0);
-			glVertex3f( 5000.0,  5000.0, -5000.0);
-			glVertex3f( 5000.0, -5000.0, -5000.0);
-			glVertex3f(-5000.0, -5000.0, -5000.0);
-	
-			// Draw top side:
-			glNormal3f(0.0, 5000.0, 0.0);
-			glVertex3f(-5000.0,  5000.0,  5000.0);
-			glVertex3f( 5000.0,  5000.0,  5000.0);
-			glVertex3f( 5000.0,  5000.0, -5000.0);
-			glVertex3f(-5000.0,  5000.0, -5000.0);
-	
-			// Draw bottom side:
-			glColor3f(0,0,0);
-			glNormal3f(0.0, -5000.0, 0.0);
-			glVertex3f(-5000.0, -5000.0, -5000.0);
-			glVertex3f( 5000.0, -5000.0, -5000.0);
-			glVertex3f( 5000.0, -5000.0,  5000.0);
-			glVertex3f(-5000.0, -5000.0,  5000.0);
-		glEnd();
+			// IMPORTANT =============================================================
+			// vertices must be in CW order for each face
+			// or they will be considered backfacing b/c of glEnable(GL_CULL_FACE)
+			// =======================================================================
 
-		//glEnable(GL_LIGHTING);
+			glColor3f(0.5*(lightPos.getY()/1000.0f)+0.1, (lightPos.getY()/1000.0f), (lightPos.getY()/1000.0f));
+
+			// Top face (y = 5000.0f)
+			glVertex3f( 5000.0f, 5000.0f, -5000.0f);
+			glVertex3f( 5000.0f, 5000.0f,  5000.0f);
+			glVertex3f(-5000.0f, 5000.0f,  5000.0f);
+			glVertex3f(-5000.0f, 5000.0f, -5000.0f);
+ 
+			// Bottom face (y = -5000.0f)
+			glVertex3f( 5000.0f, -5000.0f,  5000.0f);
+			glVertex3f( 5000.0f, -5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, -5000.0f,  5000.0f);
+ 
+			// Front face  (z = 5000.0f)
+			glVertex3f( 5000.0f,  5000.0f, 5000.0f);
+			glVertex3f( 5000.0f, -5000.0f, 5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, 5000.0f);
+			glVertex3f(-5000.0f,  5000.0f, 5000.0f);
+
+			// Back face (z = -5000.0f)
+			glVertex3f( 5000.0f, -5000.0f, -5000.0f);
+			glVertex3f( 5000.0f,  5000.0f, -5000.0f);
+			glVertex3f(-5000.0f,  5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, -5000.0f);
+ 
+			// Left face (x = -5000.0f)
+			glVertex3f(-5000.0f,  5000.0f,  5000.0f);
+			glVertex3f(-5000.0f, -5000.0f,  5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, -5000.0f);
+			glVertex3f(-5000.0f,  5000.0f, -5000.0f);
+ 
+			// Right face (x = 5000.0f)
+			glVertex3f(5000.0f,  5000.0f, -5000.0f);
+			glVertex3f(5000.0f, -5000.0f, -5000.0f);
+			glVertex3f(5000.0f, -5000.0f,  5000.0f);
+			glVertex3f(5000.0f,  5000.0f,  5000.0f);
+		 glEnd();
+
+		glDepthMask(GL_TRUE);
 		glEnable(GL_DEPTH_TEST);
 
-		glPopMatrix();
+	glPopMatrix();
 }
+
+void Window::drawCCWSkyBox() {
+	glPushMatrix();
+		/*
+		// code to make skybox move with camera
+		GLfloat curr[16];
+		glGetFloatv(GL_MODELVIEW_MATRIX, curr);
+		Matrix4 mv = Matrix4(
+			curr[0], curr[1], curr[2], curr[3],
+			curr[4], curr[5], curr[6], curr[7],
+			curr[8], curr[9], curr[10], curr[11],
+			curr[12], curr[13], curr[14], curr[15]
+		);
+		mv.identity();
+
+		Matrix4 cam =  shape.getCameraMatrix();
+		Matrix4 follow_cam = mv.multiply(cam);
+
+		mv.set(0,3,follow_cam.get(0,3));
+		mv.set(1,3,follow_cam.get(1,3));
+		mv.set(2,3,follow_cam.get(2,3));
+
+		follow_cam.print();
+		glLoadMatrixf(follow_cam.getGLMatrix());
+		*/
+		
+		glDisable(GL_DEPTH_TEST);
+		glDepthMask(GL_FALSE);
+		
+		glDisable(GL_LIGHTING);
+
+		glBegin(GL_QUADS);
+			// IMPORTANT =============================================================
+			// these vertices are in CCW order
+			// they will be considered backfacing b/c of glEnable(GL_CULL_FACE)
+			// =======================================================================
+
+			// Top face (y = 5000.0f)
+			glColor3f(0, 1, 0);     // Green
+			glVertex3f( 5000.0f, 5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, 5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, 5000.0f,  5000.0f);
+			glVertex3f( 5000.0f, 5000.0f,  5000.0f);
+ 
+			// Bottom face (y = -5000.0f)
+			glColor3f(1, 0.5, 0);     // Orange
+			glVertex3f( 5000.0f, -5000.0f,  5000.0f);
+			glVertex3f(-5000.0f, -5000.0f,  5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, -5000.0f);
+			glVertex3f( 5000.0f, -5000.0f, -5000.0f);
+ 
+			// Front face  (z = 5000.0f)
+			glColor3f(1, 0, 0);     // Red
+			glVertex3f( 5000.0f,  5000.0f, 5000.0f);
+			glVertex3f(-5000.0f,  5000.0f, 5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, 5000.0f);
+			glVertex3f( 5000.0f, -5000.0f, 5000.0f);
+ 
+			// Back face (z = -5000.0f)
+			glColor3f(1, 1, 0);     // Yellow
+			glVertex3f( 5000.0f, -5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, -5000.0f);
+			glVertex3f(-5000.0f,  5000.0f, -5000.0f);
+			glVertex3f( 5000.0f,  5000.0f, -5000.0f);
+ 
+			// Left face (x = -5000.0f)
+			glColor3f(0, 0, 1);     // Blue
+			glVertex3f(-5000.0f,  5000.0f,  5000.0f);
+			glVertex3f(-5000.0f,  5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, -5000.0f, -5000.0f);
+			glVertex3f(-5000.0f, -5000.0f,  5000.0f);
+ 
+			// Right face (x = 5000.0f)
+			glColor3f(1, 0, 1);     // Magenta
+			glVertex3f(5000.0f,  5000.0f, -5000.0f);
+			glVertex3f(5000.0f,  5000.0f,  5000.0f);
+			glVertex3f(5000.0f, -5000.0f,  5000.0f);
+			glVertex3f(5000.0f, -5000.0f, -5000.0f);
+		 glEnd();
+
+		glDepthMask(GL_TRUE);
+		glEnable(GL_DEPTH_TEST);
+
+	glPopMatrix();
+}
+
 
 void Shape::findminsmaxs() {
 	float minx = FLT_MAX;
@@ -2202,59 +1806,7 @@ void Shape::updateLookAtVector() {
 	up = Vector3(tmp.get(0, 0), tmp.get(0, 1), tmp.get(0, 2));
 	
 	updateCameraMatrix(0, 0, 0);
-
-	//cout << "angley_change: " << angley_change << '\n';
-	//cout << "angley: " << angley << '\n';
-	/*
-	cout << "after: \n";
-	cout << "d: ";
-	d.print();
-	cout << "e: ";
-	e.print();
-	*/
 }
-
-double Shape::getAngle() {
-	return angle;
-}
-
-void Shape::setAngle(double a) {
-	angle = a;
-}
-
-Matrix4 Shape::setScaleMatrix(float factor) {
-	Matrix4 scale = Matrix4();
-	for (int i = 0; i < 3; i++)
-	{
-		scale.set(i, i, factor);
-	}
-	return scale;
-}
-
-/*
-void Shape::drawHouse() {
-	glColor3f(1, 1, 1);
-	int tris = 0;
-	GLfloat k[4] = {GLfloat(0.0), GLfloat(1.0), GLfloat(1.0), GLfloat(0.0)};
-	GLfloat l[4] = {GLfloat(0.0), GLfloat(0.0), GLfloat(1.0), GLfloat(0.0)};
-	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_QUADS);
-	for (int i=0; i<7; i++) {
-
-
-		//glColor3f(house_colors[12*i], house_colors[12*i+1], house_colors[12*i+2]);
-		//glNormal3f(house_indices[i*6], house_indices[i*6+1], house_indices[i*6+2]);
-		for (int v=0; v<4; v++) {
-			glNormal3f(house_indices[i*6], house_indices[i*6+1], house_indices[i*6+2]);
-			glTexCoord2f(k[v], l[v]);
-			glVertex3f(house_vertices[12*i+3*v], house_vertices[(12*i)+(3*v)+1], house_vertices[(12*i)+(3*v)+2]);
-		}
-		//glNormal3f(house_indices[i*6+3], house_indices[i*6+4], house_indices[i*6+5]);
-	}
-	glEnd();
-	glDisable(GL_TEXTURE_2D);
-}
-*/
 
 void Shape::drawHouse() {
 	int tris = 0;
@@ -2268,16 +1820,7 @@ void Shape::drawHouse() {
 		glNormal3f(house_indices[i*6+3], house_indices[i*6+4], house_indices[i*6+5]);
 	}
 	glEnd();
-
-
 }
-
-void Shape::spin(double deg)
-{
-	if (shape.angle > 360.0 || shape.angle < -360.0) shape.angle = 0.0;
-	shape.getModelViewMatrix().rotateWindowY(deg);
-}
-
 
 void Window::processNormalKeys(unsigned char key, int x, int y) {
 	Vector3 tmp_vec = Vector3(d.getX()-e.getX(), d.getY()-e.getY(), d.getZ()-e.getZ()); // second arg could be 0 i think
@@ -2302,46 +1845,23 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 			glutDestroyWindow(glutGetWindow());
 			exit(0);
 			break;
-		case 'e':
+		case 'e': // speed up movement
 			walk_x_factor*=(3.0/2.0);
 			walk_y_factor*=(3.0/2.0);
 			walk_z_factor*=(3.0/2.0);
 			break;
-		case 'q':
+		case 'q': // slow down movement
 			walk_x_factor*=(2.0/3.0);
 			walk_y_factor*=(2.0/3.0);
 			walk_z_factor*=(2.0/3.0);
 			break;
-		case 'y':
+		case 'y': // toggle sun rotation
 			toggle_freeze = !toggle_freeze;
 			break;
-		case 't':
+		case 't': // toggle speeding up sun
 			speed_up = !speed_up;
 			break;
-		case '1':
-				toggle1 = !toggle1;
-				toggle1 ? shape.directional.enable() : shape.directional.disable();
-				toggle1 ? cout << "directional ON\n" : cout << "directional OFF\n";
-			break;
-		case '2':
-				toggle2 = !toggle2;
-				toggle2 ? shape.point.enable() : shape.point.disable();
-				toggle2 ? cout << "point ON\n" : cout << "point OFF\n";
-			break;
-		case '3':
-				toggle3 = !toggle3;
-				toggle3 ? shape.spot.enable() : shape.spot.disable();
-				toggle3 ? cout << "spot ON\n" : cout << "spot OFF\n";
-			break;
-		case '5':
-			shader_toggle = !shader_toggle;
-			if (shader_toggle)
-				Shader shader = Shader("diffuse_shading.vert", "diffuse_shading.frag", true);
-			else
-				Shader shader = Shader("diffuse_shading.vert", "diffuse_shading.frag", false);
-			break;
-		case 'h':
-
+		case 'h': // toggle height map
 			heightMapEnabled = !heightMapEnabled;
 			if (heightMapEnabled) {
 			heightmaptoggledon = true;
@@ -2350,13 +1870,13 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 				heightmaptoggledoff = true;
 			}
 			break;
-		case 'c':
+		case 'c': // toggle always centering mouse pointer
 			warp = !warp;
 			break;
-		case 'o':
+		case 'o': // toggle shadows
 			showShadows = !showShadows;
 			break;
-		case 'w':
+		case 'w': // walk forward
 			if (!falling || !heightMapEnabled) {
 				moved = true;
 				if (!heightMapEnabled) {
@@ -2390,7 +1910,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 				}
 			}
 			break;
-		case 's':
+		case 's': // walk backwards
 			if (!falling || !heightMapEnabled) {
 				moved = true;
 				if (!heightMapEnabled) {
@@ -2424,7 +1944,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 				}
 			}
 			break;
-		case 'a':
+		case 'a': // strafe left
 			if (!falling || !heightMapEnabled) {
 				moved = true;
 				//shape.updateCameraMatrix(a_vec.getX()*walk_x_factor,0,a_vec.getZ()*walk_z_factor);
@@ -2459,7 +1979,7 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 				}
 			}
 			break;
-		case 'd':
+		case 'd': // strafe right
 			if (!falling || !heightMapEnabled) {
 				moved = true;
 				//shape.updateCameraMatrix(d_vec.getX()*walk_x_factor,0,d_vec.getZ()*walk_z_factor);
@@ -2493,21 +2013,21 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 				}
 			}
 			break;
-		case 'r':
+		case 'r': // fly up
 			if (!falling || !heightMapEnabled) {
 				moved = true;
 				shape.updateCameraMatrix(0,walk_y_factor,0);
 				curr_height+=walk_y_factor;
 			}
 			break;
-		case 'f':
+		case 'f': // fly down
 			if (!falling || !heightMapEnabled) {
 				moved = true;
 				shape.updateCameraMatrix(0,-1.0*walk_y_factor,0);
 				curr_height-=walk_y_factor;
 			}
 			break;
-		case 'g':
+		case 'g': // toggle god mode
 			moved = true;
 			godMode = !godMode;
 			if (!godMode) {
@@ -2526,23 +2046,24 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 			else {
 				heightMapEnabled = false;
 				
-				e = Vector3(200,750,0);
+				e = Vector3(200,1250,0);
 				d = Vector3(200,0,0);
 				up = Vector3(0,0,-1);
 				shape.updateCameraMatrix(0,0,0);
 				
-				curr_height = 750;
+				curr_height = 1250;
 				walk_x_factor = 100.0;
 				walk_y_factor = 100.0;
 				walk_z_factor = 100.0;
 			}
 			break;
-		case 'n':
+		case 'n': // toggle seasons
 			if (season == 4)
 				season = 0;
 			else
 				season++;
 	}
+	shape.updateModelViewMatrix();
 
 	if (e.getX() < 0) {
 		tmpx = -1*floor((-1.0*e.getX())+0.5);

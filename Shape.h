@@ -68,32 +68,21 @@ class Shape {
 		Matrix4& getProjectionMatrix();
 		void setViewportMatrix();
 		void setProjectionMatrix();
-		void nearestNeighbor(Vector4, Vector4*);
 		void updateModelViewMatrix();
-		void viewFrustumCulling(MatrixTransform*);
-		void drawArmy();
-		double getAngle();
-		void setAngle(double);
-		Matrix4 setScaleMatrix(float);
-    void spin(double);
+
 		void drawHouse();
-		void drawRobot();
-		void drawRobot2();
-		void calculateBezierSurface();
-		void drawBezierSurface();
-		void calculateBezier();
-		void drawBezier();
-		void calculateNormals();
-		void calculateStuff(int, float*);
+		
 		void loadData();
 		void loadTexture(char[]);
 		unsigned char* loadPPM(const char*, int&, int&);
-		void computeBoundingBox(vector<vector<MatrixTransform*>>, int);
+
 		void updateCameraMatrix(float dx,float dy,float dz);
 
 		void updateLookAtVector();
 		
 		void initializeHeightMap();
+		void findminsmaxs();
+		void gravity(int, int);
 
 		void makeShadows();
 		void initializeShadows();
@@ -116,9 +105,6 @@ class Shape {
 		void initializeLeaves();
 		void updateLeaves();
 		void drawLeaves();
-
-		void findminsmaxs();
-		void gravity(int, int);
 };
 
 class Window { // output window related routines
@@ -128,19 +114,14 @@ class Window { // output window related routines
     static void idleCallback(void);
     static void reshapeCallback(int, int);
     static void displayCallback(void);
-	//static void drawShape(int nVerts, float* vertices, float* normals);
-	static void drawShape(int nVerts, float* vertices, float* normals, float *texcoords);
-	static void processNormalKeys(unsigned char, int, int);
-	static void processSpecialKeys(int, int, int);
-	static void processMouseClick(int, int, int, int);
-	static void processMouseMove(int, int);
-	static void drawCube();
-	static void drawRobot();
-	static void drawDirectionalLight();
-	static void drawPointLight();
-	static void drawSpotLight();
-	static void drawSkyBox();
-	static void drawGrass();
+		static void drawShape(int nVerts, float* vertices, float* normals, float *texcoords);
+		static void processNormalKeys(unsigned char, int, int);
+		static void processSpecialKeys(int, int, int);
+		static void processMouseClick(int, int, int, int);
+		static void processMouseMove(int, int);
+		static void drawCube();
+		static void drawCWSkyBox();
+		static void drawCCWSkyBox();
 };
 
 

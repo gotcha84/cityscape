@@ -24,11 +24,17 @@ GLuint roadTexture;
 GLuint topTexture;
 static bool printedfirst = false;
 static char displayString[32] = "COLLISION DETECTED";
+static char displayString2[32] = "HEIGHTMAP OFF\n";
+static char displayString3[32] = "HEIGHTMAP ON\n";
 static bool heightMapEnabled = true;
 static bool falling = false;
 static float velocity = 1.0;
 static bool collisiondetected = false;
+static bool heightmaptoggledon = false;
+static bool heightmaptoggledoff = false;
 static int counter = 0;
+static int counter2 = 0;
+static int counter3 = 0;
 static float curr_height = 0.0;
 //TIMER timer;
 //float angle=timer.GetTime()/10;
@@ -141,7 +147,7 @@ static bool toggle_tex = false;
 
 int Window::width  = 512;   // set window width in pixels here
 int Window::height = 512;   // set window height in pixels here
-static bool fullscreen = true;
+static bool fullscreen = false;
 
 //MatrixTransform army;
 static int army_size = 5;
@@ -500,6 +506,64 @@ void Window::displayCallback(void) {
 		anglex_change = 0.0;
 		angley_change = 0.0;
 	}
+
+		if (heightmaptoggledon) {
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glLoadIdentity();
+			gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadIdentity();
+
+			//Print text
+			glRasterPos2f(-1.0f, 0.8f);
+			for(unsigned int i=0; i<strlen(displayString3); ++i)
+				glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString3[i]);
+		
+			//reset matrices
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+			counter2++;
+			if (counter2 == 100) {
+				heightmaptoggledon = false;
+				counter2 = 0;
+			}
+	}
+
+
+	if (heightmaptoggledoff) {
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glLoadIdentity();
+			gluOrtho2D(-1.0f, 1.0f, -1.0f, 1.0f);
+
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadIdentity();
+
+			//Print text
+			glRasterPos2f(-1.0f, 0.7f);
+			for(unsigned int i=0; i<strlen(displayString2); ++i)
+				glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, displayString2[i]);
+		
+			//reset matrices
+			glMatrixMode(GL_PROJECTION);
+			glPopMatrix();
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+			counter3++;
+			if (counter3 == 100) {
+				heightmaptoggledoff = false;
+				counter3 = 0;
+			}
+	}
+
+	glColor3f(1, 0, 0);
+
 
 	if (collisiondetected) {
 			glMatrixMode(GL_PROJECTION);
@@ -2301,10 +2365,10 @@ void Window::processNormalKeys(unsigned char key, int x, int y) {
 
 			heightMapEnabled = !heightMapEnabled;
 			if (heightMapEnabled) {
-			cout << "heightmapenabled\n";
+			heightmaptoggledon = true;
 			}
 			else {
-				cout << "heightmapdisabled\n";
+				heightmaptoggledoff = true;
 			}
 			break;
 		case 'c':
